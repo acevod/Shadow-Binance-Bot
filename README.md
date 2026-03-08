@@ -1,5 +1,7 @@
 # Shadow Binance Bot
 
+![License](https://img.shields.io/badge/license-MIT-green) ![OpenClaw](https://img.shields.io/badge/OpenClaw-AI%20Agent-purple) ![Binance](https://img.shields.io/badge/Binance-API-yellow) ![AI](https://img.shields.io/badge/AI-Trading%20Coach-blue)
+
 AI-powered trading coach that analyzes your Binance trades and shows how alternative strategies could have improved your results.
 
 Instead of guessing what went wrong, traders can see a simulated "shadow strategy" running alongside their real trades.
