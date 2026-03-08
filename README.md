@@ -81,6 +81,17 @@ Provide constructive insights including:
 
 ---
 
+## Use Cases
+
+Shadow Binance Bot can help traders:
+
+- understand why certain trades failed
+- simulate alternative strategies
+- detect emotional trading behavior
+- improve long-term trading discipline
+
+---
+
 ## How It Works
 
 1. Connect Binance account (read-only API)
@@ -89,6 +100,15 @@ Provide constructive insights including:
 4. Detect emotional trading patterns
 5. Run simulated alternative strategies
 6. Compare results and generate coaching insights
+
+---
+
+## Tech Stack
+
+- OpenClaw AI Agent Framework
+- Binance API
+- Large Language Models (LLM)
+- Trading Strategy Simulation
 
 ---
 
@@ -151,6 +171,7 @@ This project **does not provide financial advice or trading signals**.
 ```
 Shadow-Binance-Bot/
   README.md
+  LICENSE
   skill/
     skill.md
   assets/
