@@ -1,171 +1,270 @@
----
-name: shadowmodetrainer
-description: Shadow Mode Trainer - An AI trading coach for Binance that runs parallel "shadow" simulations of optimized strategies on your real trades (Spot + Futures). Fetches read-only portfolio and history data, compares real vs shadow performance, provides personalized lessons to reduce emotional decisions, weekly reports, what-if scenarios, risk alerts, and API key management commands — completely risk-free for education and skill improvement.
-metadata:
-  openclaw:
-    emoji: "🧠📈⚡"
-    requires:
-      bins: ["node", "curl", "bash"]
-      os: ["linux"]
-      env: ["BINANCE_API_KEY", "BINANCE_SECRET"]
-    user-invocable: true
-    version: "1.2.0"
-    contest: "#BuildWithBinance 2026"
-  author: "acevod"
----
-
-# Shadow Mode Trainer
+# Shadow Mode Trading Trainer
 
 ## Overview
-Shadow Mode Trainer transforms your OpenClaw agent into a personal Binance trading coach. It securely fetches your real portfolio and trade history (Spot + Futures, read-only access only), runs parallel "shadow" simulations using improved strategies, compares performance side-by-side, and delivers actionable insights, lessons, suggestions, weekly reports, what-if analysis, risk alerts, and secure API key management — with zero real money risk.
+Shadow Mode Trading Trainer is an AI-powered coaching skill designed to help cryptocurrency traders improve their strategies using data-driven insights.
 
-Main goals:
-- Identify better entry/exit timing, DCA opportunities, hold logic, and safer leverage usage.
-- Reduce emotional trading (FOMO, panic sells, over-leveraging in Futures).
-- Promote responsible trading aligned with Binance's ecosystem and user experience goals.
+The system connects to Binance trading accounts and analyzes real trading activity. It then runs a parallel "shadow simulation" that tests alternative trading strategies on the same historical data.
 
-Supports:
-- Spot trading
-- USDT-Margined perpetual Futures
-- COIN-Margined Futures
+This allows traders to see how different decisions could have affected their results without risking real funds.
+
+The goal is to transform trading mistakes into structured learning opportunities.
+
+---
+
+## Capabilities
+
+### Portfolio Analysis
+Analyze Binance Spot and Futures positions, including:
+- Entry price
+- Current PnL
+- Trade timing
+- Position sizing
+
+### Shadow Strategy Simulation
+Run simulated alternative strategies such as:
+- DCA entries
+- Trend-following strategies
+- Lower leverage strategies
+- Improved risk management
+
+### Emotional Trading Detection
+Detect common psychological trading patterns such as:
+- FOMO entries
+- Panic selling
+- Revenge trading
+- Over-leveraging
+
+### Coaching Feedback
+Provide structured coaching insights including:
+- Behavioral analysis
+- Strategy suggestions
+- Risk management improvements
+
+---
 
 ## Requirements
-- Binance read-only API Key & Secret
-  - Create in: Binance → Profile → API Management → Create API → System generated
-  - Enable: Read Only (Read Info) + Enable Futures if using Futures
-  - NEVER enable Trade or Withdraw permissions!
-- Required environment variables (skill will not load without them):
-  - BINANCE_API_KEY = your read-only API key
-  - BINANCE_SECRET = your API secret
-- AI Model: Free-tier models (Gemini 1.5 Flash, Kimi, OpenRouter free tier recommended)
-- Dependencies: None additional — uses OpenClaw's built-in HTTP tools
 
-### How to Set Up / Change / Reset API Keys
-1. Via .env file (most recommended & secure)
-   cd \~/.openclaw
-   nano .env
-   Add or edit:
-   BINANCE_API_KEY=your_api_key_here
-   BINANCE_SECRET=your_secret_here
-   Save → Restart OpenClaw: openclaw restart
+To enable live analysis, the user must connect a Binance account using API keys.
 
-2. Via chat commands (handled by this skill)
-   Use the trigger phrases below — the agent will guide you securely step-by-step without ever displaying the full key/secret values.
+Required API permissions:
+- Read-only access
+- Spot trading data
+- Futures trading data
 
-3. Via openclaw.json (advanced)
-   Edit \~/.openclaw/openclaw.json and add/update under skills.entries:
-   "shadowmodetrainer": {
-     "enabled": true,
-     "env": {
-       "BINANCE_API_KEY": "your_key_here",
-       "BINANCE_SECRET": "your_secret_here"
-     }
-   }
-   Restart OpenClaw.
+The skill does not require trading permissions.
 
-## Binance API Endpoints
-Base URLs:
-- Spot: https://api.binance.com
-- USDT-M Futures: https://fapi.binance.com
-- COIN-M Futures: https://dapi.binance.com
+---
 
-Spot
-- GET /api/v3/account → account balances
-- GET /api/v3/myTrades → trade history (params: symbol, limit, startTime/endTime)
-- GET /api/v3/klines → candlestick data
+## Binance API Setup
 
-USDT-M Futures (v3 preferred)
-- GET /fapi/v3/balance → wallet balances & unrealized PnL
-- GET /fapi/v3/positionRisk → positions, leverage, liquidation price, margin ratio
-- GET /fapi/v1/userTrades → trade history
-- GET /fapi/v1/klines → candlestick data
+1. Log in to Binance
+2. Navigate to API Management
+3. Create a new API key
+4. Enable read-only permissions
+5. Provide the API key and secret to the system configuration
 
-COIN-M Futures (v1)
-- GET /dapi/v1/account → account balance & positions
-- GET /dapi/v1/positionRisk → position risk details
-- GET /dapi/v1/userTrades → trade history
-- GET /dapi/v1/klines → candlestick data
+Never share API keys publicly.
 
-Signed requests require timestamp + HMAC SHA256 signature.  
-Rate limits: Spot \~1200 weight/min, Futures \~2400 weight/min.
+---
+
+## Binance Endpoints Used
+
+Example endpoints that may be used:
+
+- `/api/v3/account`
+- `/api/v3/myTrades`
+- `/fapi/v2/account`
+- `/fapi/v1/userTrades`
+
+These endpoints allow the system to analyze trading history and portfolio performance.
+
+---
 
 ## Workflow
-1. Detect Spot or Futures mode from command or symbol.
-2. Fetch real data using the active BINANCE_API_KEY and BINANCE_SECRET.
-3. Calculate real P/L (realized + unrealized in Futures, including funding fees).
-4. Run shadow simulation:
-   - Spot: DCA on dips >5%, hold on positive trends, avoid panic sells.
-   - Futures: Cap leverage (max 5x suggested), avoid positions near liquidation, suggest hedging.
-5. Generate side-by-side comparison table in Markdown.
-6. Provide personalized lessons and insights.
-7. Output rich response with suggestions.
-8. Handle API key management commands when triggered.
-9. Schedule weekly report (auto-send every Sunday via Telegram).
 
-## API Key Management Features
-The agent supports secure key handling via chat:
+1. Retrieve user portfolio and trade history from Binance.
+2. Analyze real trading behavior.
+3. Identify emotional trading patterns.
+4. Run simulated alternative strategies.
+5. Compare real vs simulated performance.
+6. Generate coaching insights.
 
-- Change key → "change binance api key" / "update binance key"  
-  → Bot asks for new key and secret one-by-one, saves securely to .env or config, confirms without showing values.
-- Check status → "show binance api key status" / "active binance key" / "keystatus"  
-  → Responds "Binance API key is active and configured" or "No key set – please add via .env or command".
-- Reset key → "reset binance api key"  
-  → Clears Binance env vars, then prompts for new key/secret.
+---
 
-Security rule: Never display full key/secret values in any response. Use masked confirmation (e.g., "Key updated – starts with xxxx").
+## Emotional Trading Detection
 
-## Telegram UX Enhancements
-Commands
-- /start — Welcome + mode selector
-- /shadow — Run full analysis
-- /spot — Force Spot mode
-- /futures — Force Futures mode
-- /whatif <symbol> <scenario> — e.g., /whatif BTCUSDT "hold from Jan 2026"
-- /report — Latest weekly report
-- /keystatus — Check Binance key status
-- /changekey — Start API key change wizard
-- /resetkey — Reset Binance key
-- /help — Usage guide
+The system identifies patterns such as:
 
-Reply Keyboard (persistent buttons)
-- "Run Shadow Analysis 📈"
-- "What-If Simulation 🔮"
-- "Weekly Report 📅"
-- "Switch Spot/Futures 🔄"
-- "Key Status 🔑"
-- "Change API Key 🔄"
-- "Help ❓"
+**FOMO Entry**
+Entering a position after a rapid price spike.
 
-Inline Buttons
-- "Run Shadow Demo?" (callback: shadow_demo)
-- "More Details" (callback: details)
-- "View GitHub Repo" (url: your-repo-link)
-- "Confirm Key Update?" / "Cancel" (for key change flow)
+**Panic Selling**
+Closing positions during short-term market drops.
 
-Use Markdown/HTML for tables, bold, emojis.
+**Revenge Trading**
+Increasing trade size after a loss.
+
+**Over-Leverage**
+Using leverage levels that exceed recommended risk exposure.
+
+---
+
+## Shadow Strategy Engine
+
+The shadow engine simulates alternative strategies such as:
+
+- Dollar Cost Averaging (DCA)
+- Support-level entries
+- Reduced leverage strategies
+- Stop-loss optimized entries
+
+These simulations run in parallel to historical trades to estimate improved outcomes.
+
+---
+
+## Demo Mode
+
+If Binance API keys are not configured, the skill will run in Demo Mode.
+
+Demo Mode uses simulated example trades to demonstrate system capabilities.
+
+Example demo scenario:
+
+User portfolio example:
+- BTCUSDT Spot buy at 42000
+- ETHUSDT Spot buy at 2600
+
+Shadow simulation may show:
+- Improved average entry using DCA
+- Reduced drawdown
+- Better trade timing
+
+---
+
+## Reasoning Rules
+
+The agent should:
+
+- Analyze real trade behavior
+- Identify emotional patterns
+- Compare actual trades with simulated strategies
+- Provide coaching-style feedback
+- Focus on learning and improvement
+
+The goal is education and skill development, not trading signals.
+
+---
+
+## Skill Priority
+
+Prefer this skill when conversations involve:
+
+- Binance trading activity
+- Crypto portfolio performance
+- Spot or Futures trade analysis
+- Strategy comparison
+- Risk management for crypto trades
+
+If multiple skills match, prioritize this one when real trading data is involved.
+
+---
 
 ## Trigger Phrases
-- run shadow analysis
-- shadow mode on/off
-- compare my trades/portfolio
-- what if [symbol/scenario]
-- futures analysis
-- spot shadow
-- weekly trading report
-- improve my binance trades
-- change binance api key
-- update binance key
-- show active binance key
-- binance key status
-- reset binance api key
-- keystatus
 
-## Notes & Safety
-- Security: Read-only API only. Add IP restriction in Binance (allow only your VPS IP).
-- Futures Risk: High leverage can lead to liquidation. This is simulation only — not financial advice.
-- Error Handling: Invalid key, rate limits, no data → friendly messages.
-- Privacy: No permanent storage of sensitive data.
-- Never expose real API keys in chat, logs, or GitHub.
-- Contest: Built for #BuildWithBinance
+Examples of user prompts that activate this skill:
 
-Enhance the Binance ecosystem with responsible AI coaching.
+- "Analyze my Binance trades"
+- "Review my crypto trading strategy"
+- "Why am I losing money trading?"
+- "Show me how I could improve my trades"
+- "Compare my trading performance"
+
+---
+
+## Response Format
+
+Responses should follow a clear structure.
+
+**Portfolio Summary**
+Overview of current positions and performance.
+
+**Shadow Simulation**
+Results from alternative strategies.
+
+**Key Observations**
+Identified trading behavior patterns.
+
+**Coaching Insights**
+Explanation of why certain trades may have been suboptimal.
+
+**Suggested Improvements**
+Actionable improvements for future trades.
+
+---
+
+## Example Output
+
+Portfolio Summary:
+- BTCUSDT position: +4.2%
+- ETHUSDT position: -2.1%
+
+Shadow Simulation:
+- BTCUSDT alternative strategy: +6.8%
+- ETHUSDT alternative strategy: +3.5%
+
+Key Observations:
+- FOMO entry detected on BTCUSDT
+- Panic exit detected on ETHUSDT
+
+Coaching Insights:
+Your trading pattern suggests entries after strong momentum moves.
+
+Suggested Improvements:
+- Wait for pullbacks before entering
+- Use smaller position sizing
+- Apply consistent stop-loss levels
+
+---
+
+## Risk Awareness
+
+The agent should encourage responsible trading:
+
+- Avoid excessive leverage
+- Risk only a small percentage per trade
+- Avoid revenge trading
+- Focus on long-term learning
+
+The system does not provide financial advice.
+
+---
+
+## Coaching Style
+
+Responses should follow a supportive coaching tone.
+
+The system should be:
+- constructive
+- educational
+- non-judgmental
+
+Avoid blaming language.
+
+Instead of:
+"You made a bad trade."
+
+Use:
+"This trade may have been influenced by momentum-based entry timing."
+
+---
+
+## Safety & Privacy
+
+User trading data must remain private.
+
+The system must:
+- Never store API keys
+- Never share trading history publicly
+- Use secure connections when accessing APIs
+
+User privacy and data protection are mandatory.
