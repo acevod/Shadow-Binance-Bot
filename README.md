@@ -1,4 +1,4 @@
-# Shadow Mode Trading Trainer
+# Shadow Binance Bot
 
 AI-powered trading coach that analyzes your Binance trades and shows how alternative strategies could have improved your results.
 
@@ -149,7 +149,7 @@ This project **does not provide financial advice or trading signals**.
 ## Project Structure
 
 ```
-shadow-mode-trading-trainer/
+Shadow-Binance-Bot/
   README.md
   skill/
     skill.md
