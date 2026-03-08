@@ -42,6 +42,21 @@ The system acts as a **trading coach instead of a signal generator**.
 
 ---
 
+## Shadow Strategy Simulation
+
+![Shadow Strategy Simulation](assets/shadow-simulation.png)
+
+This system analyzes a trader's real trade history and simulates alternative strategies in a "shadow mode".
+
+By comparing real trades with AI-simulated strategies, the system can identify:
+
+- missed opportunities
+- emotional trading patterns
+- better entry and exit strategies
+- potential performance improvements
+
+---
+
 ## Key Features
 
 ### Portfolio Analysis
@@ -100,6 +115,12 @@ Shadow Binance Bot can help traders:
 4. Detect emotional trading patterns
 5. Run simulated alternative strategies
 6. Compare results and generate coaching insights
+
+---
+
+## System Architecture
+
+![Shadow Binance Bot Architecture](assets/architecture.png)
 
 ---
 
@@ -175,6 +196,8 @@ Shadow-Binance-Bot/
   skill/
     skill.md
   assets/
+    architecture.png
+    shadow-simulation.png
 ```
 
 ---
