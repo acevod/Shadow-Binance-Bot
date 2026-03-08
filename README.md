@@ -1,20 +1,179 @@
-# Shadow Mode Trainer
+# Shadow Mode Trading Trainer
 
-AI trading coach for Binance built with OpenClaw. Runs parallel "shadow" simulations of smarter strategies on your real trades (Spot + Futures), compares real vs shadow performance, gives anti-emotional lessons (FOMO, panic sells, over-leverage), weekly reports, what-if scenarios, risk alerts, and secure API key management — all completely risk-free.
+AI-powered trading coach that analyzes your Binance trades and shows how alternative strategies could have improved your results.
 
-Made for #BuildWithBinance contest.
+Instead of guessing what went wrong, traders can see a simulated "shadow strategy" running alongside their real trades.
 
-**Install**  
-Paste to your OpenClaw bot chat:
+This transforms trading mistakes into structured learning.
 
-Install skill from GitHub: https://github.com/acevod/Shadow-Binance-Bot
-Clone to skills folder, load SKILL.md, activate as ShadowModeTrainer.
+---
 
-**Requirements**  
-- Binance read-only API Key & Secret (add to .env: BINANCE_API_KEY, BINANCE_SECRET)  
-- OpenClaw gateway running  
-- Free AI model (Gemini 1.5 Flash / Kimi)
+## Problem
 
-**Triggers & Commands**  
-run shadow analysis / what if [symbol/scenario] / weekly report / change binance api key / show binance key status  
-Commands: /shadow /spot /futures /report /keystatus /changekey
+Most crypto traders lose money not because of lack of information, but because of:
+
+- FOMO entries
+- Panic selling
+- Over-leveraging
+- Poor risk management
+- Emotional trading decisions
+
+Even experienced traders struggle to objectively analyze their past trades.
+
+---
+
+## Solution
+
+Shadow Mode Trading Trainer analyzes a trader’s Binance history and runs parallel strategy simulations.
+
+It compares:
+
+**Real Trades**  
+vs  
+**Shadow Strategy Performance**
+
+This allows traders to learn:
+
+- how different entries would change results
+- how position sizing affects risk
+- how emotional trading impacts performance
+
+The system acts as a **trading coach instead of a signal generator**.
+
+---
+
+## Key Features
+
+### Portfolio Analysis
+
+Analyze Binance Spot and Futures positions including:
+
+- entry timing
+- position size
+- profit and loss
+- leverage usage
+
+### Shadow Strategy Simulation
+
+Run alternative strategies on historical trades:
+
+- Dollar Cost Averaging (DCA)
+- support level entries
+- reduced leverage
+- improved stop-loss placement
+
+### Emotional Trading Detection
+
+Detect patterns such as:
+
+- FOMO entries
+- panic selling
+- revenge trading
+- over-leveraging
+
+### AI Coaching Feedback
+
+Provide constructive insights including:
+
+- behavioral patterns
+- strategy improvement suggestions
+- risk management advice
+
+---
+
+## How It Works
+
+1. Connect Binance account (read-only API)
+2. Retrieve trading history
+3. Analyze real trading behavior
+4. Detect emotional trading patterns
+5. Run simulated alternative strategies
+6. Compare results and generate coaching insights
+
+---
+
+## Example Output
+
+**Portfolio Summary**
+
+BTCUSDT position: +4.2%  
+ETHUSDT position: -2.1%
+
+**Shadow Simulation**
+
+BTCUSDT alternative strategy: +6.8%  
+ETHUSDT alternative strategy: +3.5%
+
+**Key Observations**
+
+- FOMO entry detected on BTCUSDT  
+- Panic exit detected on ETHUSDT
+
+**Coaching Insight**
+
+Your entries often occur after strong price momentum.
+
+**Suggested Improvements**
+
+- wait for pullbacks before entering  
+- reduce leverage  
+- define stop-loss levels before opening trades
+
+---
+
+## Demo Mode
+
+If Binance API keys are not configured, the system runs in **Demo Mode**.
+
+Demo Mode simulates example portfolios to demonstrate how the shadow strategy engine works.
+
+This allows users to understand the concept without connecting real accounts.
+
+---
+
+## Safety and Risk Awareness
+
+This project promotes responsible trading practices.
+
+The system encourages:
+
+- controlled risk per trade
+- disciplined entries
+- avoidance of emotional trading
+- long-term strategy improvement
+
+This project **does not provide financial advice or trading signals**.
+
+---
+
+## Project Structure
+
+shadow-mode-trading-trainer │ ├ README.md ├ skill │   └ skill.md └ assets
+
+---
+
+## Why This Matters
+
+Crypto trading platforms provide powerful tools for execution.
+
+But traders rarely receive feedback on **how their decisions affect outcomes**.
+
+Shadow Mode Trading Trainer bridges that gap by turning historical trading data into a learning system.
+
+The goal is to help traders evolve from reactive decision-making to disciplined strategy development.
+
+---
+
+## Future Improvements
+
+- advanced AI trade pattern recognition
+- portfolio risk scoring
+- strategy backtesting engine
+- trading psychology analysis
+- visual performance dashboards
+
+---
+
+## License
+
+MIT License
