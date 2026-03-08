@@ -228,13 +228,26 @@ If multiple skills match, prioritize this one when real trading data is involved
 
 ## Trigger Phrases
 
-Examples of user prompts that activate this skill:
+Activate this skill when users request analysis, feedback, or improvement suggestions related to cryptocurrency trading behavior or Binance portfolio activity.
+
+Examples of user prompts that should activate this skill:
 
 - "Analyze my Binance trades"
 - "Review my crypto trading strategy"
 - "Why am I losing money trading?"
 - "Show me how I could improve my trades"
 - "Compare my trading performance"
+
+Additional intent variations:
+
+- "Check my crypto portfolio performance"
+- "Analyze my trading mistakes"
+- "Help me improve my trading strategy"
+- "Why do I keep losing money trading?"
+- "Review my Binance portfolio"
+- "Give feedback on my trading behavior"
+- "Analyze my crypto trades"
+- "How can I improve my trading results?"
 
 ---
 
