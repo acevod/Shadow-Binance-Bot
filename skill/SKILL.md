@@ -80,6 +80,25 @@ Provide structured coaching insights including:
 
 ---
 
+## Use Cases
+
+### Strategy Review
+A trader wants to understand why recent trades resulted in losses.  
+The skill analyzes trading history and identifies emotional patterns such as FOMO entries or panic exits.
+
+### Portfolio Coaching
+A trader wants feedback on current positions.  
+The skill evaluates portfolio structure, position sizing, and risk exposure.
+
+### Strategy Improvement
+A trader wants to test alternative strategies.  
+The skill runs shadow simulations such as DCA entries or reduced leverage to estimate potential improvements.
+
+### Learning Mode
+Beginner traders use Demo Mode to understand how different trading behaviors affect long-term results.
+
+---
+
 ## Requirements
 
 To enable live analysis, the user must connect a Binance account using API keys.
