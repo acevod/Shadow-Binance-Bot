@@ -1,6 +1,6 @@
 ---
-name: shadowbinancebot
-description: Shadow Binance Bot - An AI trading coach for Binance that runs parallel "shadow" simulations of optimized strategies on your real trades (Spot + Futures). Fetches read-only portfolio and history data, compares real vs shadow performance, provides personalized lessons to reduce emotional decisions, weekly reports, what-if scenarios, risk alerts, and API key management commands — completely risk-free for education and skill improvement.
+name: shadowmodetrainer
+description: Shadow Mode Trainer - An AI trading coach for Binance that runs parallel "shadow" simulations of optimized strategies on your real trades (Spot + Futures). Fetches read-only portfolio and history data, compares real vs shadow performance, provides personalized lessons to reduce emotional decisions, weekly reports, what-if scenarios, risk alerts, and API key management commands — completely risk-free for education and skill improvement.
 metadata:
   openclaw:
     emoji: "🧠📈⚡"
@@ -14,10 +14,10 @@ metadata:
   author: "acevod"
 ---
 
-# Shadow Binance Bot
+# Shadow Mode Trainer
 
 ## Overview
-Shadow Binance Bot transforms your OpenClaw agent into a personal Binance trading coach. It securely fetches your real portfolio and trade history (Spot + Futures, read-only access only), runs parallel "shadow" simulations using improved strategies, compares performance side-by-side, and delivers actionable insights, lessons, suggestions, weekly reports, what-if analysis, risk alerts, and secure API key management — with zero real money risk.
+Shadow Mode Trainer transforms your OpenClaw agent into a personal Binance trading coach. It securely fetches your real portfolio and trade history (Spot + Futures, read-only access only), runs parallel "shadow" simulations using improved strategies, compares performance side-by-side, and delivers actionable insights, lessons, suggestions, weekly reports, what-if analysis, risk alerts, and secure API key management — with zero real money risk.
 
 Main goals:
 - Identify better entry/exit timing, DCA opportunities, hold logic, and safer leverage usage.
@@ -166,6 +166,6 @@ Use Markdown/HTML for tables, bold, emojis.
 - Error Handling: Invalid key, rate limits, no data → friendly messages.
 - Privacy: No permanent storage of sensitive data.
 - Never expose real API keys in chat, logs, or GitHub.
-- Contest: Built for #BuildWithBinance — open-source.
+- Contest: Built for #BuildWithBinance
 
 Enhance the Binance ecosystem with responsible AI coaching.
