@@ -148,7 +148,13 @@ This project **does not provide financial advice or trading signals**.
 
 ## Project Structure
 
-shadow-mode-trading-trainer │ ├ README.md ├ skill │   └ skill.md └ assets
+```
+shadow-mode-trading-trainer/
+  README.md
+  skill/
+    skill.md
+  assets/
+```
 
 ---
 
