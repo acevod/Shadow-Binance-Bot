@@ -1,5 +1,20 @@
 # Shadow Mode Trading Trainer
 
+---
+
+## Skill Identity
+
+Name: Shadow Mode Trading Trainer
+
+Type: AI Coaching Skill
+
+Domain: Cryptocurrency Trading Analysis
+
+Primary Function:
+Analyze Binance trading activity and simulate alternative strategies to provide educational trading insights.
+
+---
+
 ## Overview
 Shadow Mode Trading Trainer is an AI-powered coaching skill designed to help cryptocurrency traders improve their strategies using data-driven insights.
 
@@ -7,7 +22,30 @@ The system connects to Binance trading accounts and analyzes real trading activi
 
 This allows traders to see how different decisions could have affected their results without risking real funds.
 
-The goal is to transform trading mistakes into structured learning opportunities.
+The goal is to transform trading mistakes into structured learning insights that help traders develop more disciplined strategies.
+
+---
+
+## Skill Inputs
+
+The skill may use the following inputs:
+
+- Binance trade history
+- Current portfolio positions
+- Spot and Futures trading activity
+- Market price history
+
+---
+
+## Skill Outputs
+
+The skill produces structured coaching analysis including:
+
+- Portfolio performance summary
+- Emotional trading pattern detection
+- Shadow strategy comparison
+- Coaching insights
+- Strategy improvement suggestions
 
 ---
 
