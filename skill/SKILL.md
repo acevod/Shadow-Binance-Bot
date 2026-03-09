@@ -112,15 +112,53 @@ The skill does not require trading permissions.
 
 ---
 
-## Binance API Setup
+## Configuration
+
+### Environment Variables
+Before running the skill, set your Binance API credentials as environment variables:
+
+Quick setup (terminal)
+```
+export BINANCE_API_KEY="your_api_key_here"
+export BINANCE_SECRET_KEY="your_secret_key_here"
+```
+
+Or use a .env file (recommended for local development):
+
+Create .env file
+```
+touch .env
+```
+
+Add your keys (don't forget the quotes!)
+```
+echo 'BINANCE_API_KEY="your_api_key_here"' >> .env
+echo 'BINANCE_SECRET_KEY="your_secret_key_here"' >> .env
+```
+
+⚠️ Important: Add .env to your .gitignore to prevent accidentally committing keys!
+
+.gitignore
+```
+.env
+```
+
+### Getting Your Binance API Key
 
 1. Log in to Binance
-2. Navigate to API Management
-3. Create a new API key
-4. Enable read-only permissions
-5. Provide the API key and secret to the system configuration
+2. Go to Account → API Management
+3. Click Create API
+4. Name your key (e.g., "Shadow-Bot")
+5. Select Read-Only permissions
+6. Complete security verification
+7. Copy your API Key and Secret Key
 
-Never share API keys publicly.
+Security Tips
+
+- Never share your Secret Key
+- Use Read-Only permissions (no trading allowed)
+- Rotate keys periodically
+- Never commit keys to version control
 
 ---
 
