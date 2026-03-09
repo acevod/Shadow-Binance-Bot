@@ -118,28 +118,25 @@ The skill does not require trading permissions.
 Before running the skill, set your Binance API credentials as environment variables:
 
 Quick setup (terminal)
-```
+```bash
 export BINANCE_API_KEY="your_api_key_here"
 export BINANCE_SECRET_KEY="your_secret_key_here"
 ```
 
 Or use a .env file (recommended for local development):
 
-```
-# Create .env file
+Create .env file
+```bash
 touch .env
+```
 
-# Add your keys (don't forget the quotes!)
+Add your keys (don't forget the quotes!)
+```bash
 echo 'BINANCE_API_KEY="your_api_key_here"' >> .env
 echo 'BINANCE_SECRET_KEY="your_secret_key_here"' >> .env
 ```
 
 ⚠️ Important: Add .env to your .gitignore to prevent accidentally committing keys!
-
-```
-# .gitignore
-.env
-```
 
 ### Getting Your Binance API Key
 
@@ -151,7 +148,7 @@ echo 'BINANCE_SECRET_KEY="your_secret_key_here"' >> .env
 6. Complete security verification
 7. Copy your API Key and Secret Key
 
-Security Tips
+### Security Tips
 
 - Never share your Secret Key
 - Use Read-Only permissions (no trading allowed)
