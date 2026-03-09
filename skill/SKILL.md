@@ -125,21 +125,19 @@ export BINANCE_SECRET_KEY="your_secret_key_here"
 
 Or use a .env file (recommended for local development):
 
-Create .env file
 ```
+# Create .env file
 touch .env
-```
 
-Add your keys (don't forget the quotes!)
-```
+# Add your keys (don't forget the quotes!)
 echo 'BINANCE_API_KEY="your_api_key_here"' >> .env
 echo 'BINANCE_SECRET_KEY="your_secret_key_here"' >> .env
 ```
 
 ⚠️ Important: Add .env to your .gitignore to prevent accidentally committing keys!
 
-.gitignore
 ```
+# .gitignore
 .env
 ```
 
