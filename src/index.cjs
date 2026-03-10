@@ -12,10 +12,10 @@ const fs = require('fs');
 const path = require('path');
 
 // Import modules
-const binance = require('./binance.js');
-const analyzer = require('./analyzer.js');
-const shadowSim = require('./shadowSim.js');
-const coach = require('./coach.js');
+const binance = require('./binance.cjs');
+const analyzer = require('./analyzer.cjs');
+const shadowSim = require('./shadowSim.cjs');
+const coach = require('./coach.cjs');
 
 // Load configuration
 function loadConfig() {
