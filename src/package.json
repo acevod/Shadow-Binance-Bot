@@ -1,0 +1,13 @@
+{
+  "name": "shadow-binance-bot",
+  "version": "1.0.0",
+  "description": "AI-powered trading coach that analyzes Binance trades",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["binance", "trading", "coach", "ai"],
+  "author": "AceVod",
+  "license": "MIT"
+}
