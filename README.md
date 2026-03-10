@@ -195,12 +195,57 @@ This project **does not provide financial advice or trading signals**.
 Shadow-Binance-Bot/
   README.md
   LICENSE
+  .gitignore
+  config.env.example
   skill/
-    skill.md
+    SKILL.md
+  src/
+    index.cjs         # Main entry point
+    binance.cjs       # Binance API connection
+    analyzer.cjs      # Trade analysis engine
+    shadowSim.cjs     # Shadow strategy simulation
+    coach.cjs         # AI coaching feedback
   assets/
     architecture.png
     shadow-simulation.png
 ```
+
+---
+
+## How to Run
+
+### Quick Start
+
+1. Clone the repo:
+```bash
+git clone https://github.com/acevod/Shadow-Binance-Bot.git
+cd Shadow-Binance-Bot
+```
+
+2. Copy the config template:
+```bash
+cp config.env.example config.env
+```
+
+3. Add your Binance API keys to `config.env`:
+```
+BINANCE_API_KEY=your_api_key_here
+BINANCE_API_SECRET=your_secret_key_here
+```
+
+4. Run the bot:
+```bash
+node src/index.cjs
+```
+
+### Get Your Binance API Key
+
+1. Log in to Binance
+2. Go to Account → API Management API (read-only permissions recommended)
+4. Copy
+3. Create your API Key and Secret Key
+
+⚠️ Never share your Secret Key!
 
 ---
 
