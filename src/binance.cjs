@@ -115,25 +115,48 @@ async function getFuturesIncome(apiKey, apiSecret, daysBack = 365) {
 }
 
 /**
- * Get Futures Trade History
+ * Get Spot Trade History
  * @param {string} apiKey - Your Binance API Key
  * @param {string} apiSecret - Your Binance API Secret
  * @param {string} symbol - Trading pair (e.g., 'BTCUSDT')
- * @param {number} daysBack - How many days back to fetch
+ * @param {number} limit - Number of trades to fetch (max 1000)
  * @returns {Promise<array>} - Trade history
  */
-async function getFuturesTrades(apiKey, apiSecret, symbol = 'BTCUSDT', daysBack = 30) {
+async function getSpotTrades(apiKey, apiSecret, symbol = 'BTCUSDT', limit = 100) {
   const timestamp = Date.now();
-  const startTime = timestamp - (daysBack * 24 * 60 * 60 * 1000);
-  const queryString = `symbol=${symbol}&startTime=${startTime}&timestamp=${timestamp}&limit=100`;
+  const queryString = `symbol=${symbol}&timestamp=${timestamp}&limit=${limit}`;
   const signature = generateSignature(queryString, apiSecret);
 
-  const path = `/fapi/v1/userTrades?${queryString}&signature=${signature}`;
-  const data = await makeRequest(BASE_FUTURES_URL, path, 'GET', {
+  const path = `/api/v3/myTrades?${queryString}&signature=${signature}`;
+  const data = await makeRequest(BASE_SPOT_URL, path, 'GET', {
     'X-MBX-APIKEY': apiKey
   });
 
   return data;
+}
+
+/**
+ * Get all Spot trades for multiple symbols
+ * @param {string} apiKey - Your Binance API Key
+ * @param {string} apiSecret - Your Binance API Secret
+ * @param {array} symbols - Array of trading pairs to fetch
+ * @returns {Promise<object>} - All trades grouped by symbol
+ */
+async function getAllSpotTrades(apiKey, apiSecret, symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT']) {
+  const allTrades = {};
+  
+  for (const symbol of symbols) {
+    try {
+      const trades = await getSpotTrades(apiKey, apiSecret, symbol, 100);
+      if (trades && trades.length > 0 && !trades.code) {
+        allTrades[symbol] = trades;
+      }
+    } catch (e) {
+      // Skip symbols with errors
+    }
+  }
+  
+  return allTrades;
 }
 
 /**
@@ -156,7 +179,8 @@ module.exports = {
   getSpotBalance,
   getFuturesBalance,
   getFuturesIncome,
-  getFuturesTrades,
+  getSpotTrades,
+  getAllSpotTrades,
   testConnection,
   generateSignature
 };

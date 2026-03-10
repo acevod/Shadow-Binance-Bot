@@ -262,7 +262,68 @@ function analyzeBehavior(analysis) {
   return insights;
 }
 
+/**
+ * Analyze Spot trades from multiple symbols
+ * @param {object} allTrades - Object with trades grouped by symbol
+ * @returns {object} - Spot analysis results
+ */
+function analyzeSpotTrades(allTrades) {
+  let totalTrades = 0;
+  let totalVolume = 0;
+  let totalCommission = 0;
+  const symbols = Object.keys(allTrades);
+  const symbolStats = {};
+  
+  symbols.forEach(symbol => {
+    const trades = allTrades[symbol];
+    if (!trades || trades.length === 0) return;
+    
+    let symbolVolume = 0;
+    let symbolCommission = 0;
+    let buys = 0;
+    let sells = 0;
+    
+    trades.forEach(trade => {
+      const qty = parseFloat(trade.qty);
+      const price = parseFloat(trade.price);
+      const commission = parseFloat(trade.commission);
+      
+      symbolVolume += qty * price;
+      symbolCommission += commission;
+      
+      if (trade.isBuyer) buys++;
+      else sells++;
+      
+      totalCommission += commission;
+    });
+    
+    totalTrades += trades.length;
+    totalVolume += symbolVolume;
+    
+    symbolStats[symbol] = {
+      trades: trades.length,
+      volume: symbolVolume.toFixed(2),
+      buys,
+      sells,
+      commission: symbolCommission.toFixed(6)
+    };
+  });
+  
+  // Calculate average trade size
+  const avgTradeSize = totalTrades > 0 ? (totalVolume / totalTrades) : 0;
+  
+  return {
+    totalSymbols: symbols.length,
+    totalTrades,
+    totalVolume: totalVolume.toFixed(2),
+    avgTradeSize: avgTradeSize.toFixed(2),
+    totalCommission: totalCommission.toFixed(6),
+    symbols: symbolStats
+  };
+}
+
 module.exports = {
   analyzeFuturesIncome,
-  analyzeBehavior
+  analyzeBehavior,
+  analyzeSpotTrades
 };
