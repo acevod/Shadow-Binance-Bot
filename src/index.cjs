@@ -122,24 +122,31 @@ async function main() {
     console.log(`   Found ${spotAnalysis.totalTrades} trades across ${spotAnalysis.totalSymbols} symbols`);
     console.log('');
     
-    // Display Spot Report
-    console.log('═══════════════════════════════════════');
-    console.log('         📊 SPOT SUMMARY              ');
-    console.log('═══════════════════════════════════════');
-    console.log(`Total Trades: ${spotAnalysis.totalTrades}`);
-    console.log(`Total Symbols: ${spotAnalysis.totalSymbols}`);
-    console.log(`Total Volume: ${spotAnalysis.totalVolume} USDT`);
-    console.log(`Avg Trade Size: ${spotAnalysis.avgTradeSize} USDT`);
-    console.log(`Commission Paid: ${spotAnalysis.totalCommission} ${Object.values(spotAnalysis.symbols)[0]?.commission?.split(' ')[1] || 'BNB/USDT'}`);
+    // Spot Shadow Simulation
+    console.log('🎭 Running Spot shadow simulations...');
+    const spotShadow = shadowSim.generateSpotShadowComparison(spotAnalysis);
+    
+    // Spot Coaching
+    console.log('📝 Generating Spot coaching...');
+    const spotCoach = coach.generateSpotCoachReport(spotAnalysis);
     console.log('');
     
+    // Display Spot Report
+    console.log(coach.formatSpotReport(spotCoach));
+    
+    // Show Spot Shadow Strategies
     if (spotAnalysis.totalTrades > 0) {
-      console.log('📊 BY SYMBOL:');
-      Object.entries(spotAnalysis.symbols).forEach(([symbol, stats]) => {
-        console.log(`   ${symbol}:`);
-        console.log(`      Trades: ${stats.trades} | Buys: ${stats.buys} | Sells: ${stats.sells}`);
-        console.log(`      Volume: ${stats.volume} USDT`);
+      console.log('═══════════════════════════════════════');
+      console.log('      💡 SPOT SHADOW STRATEGIES      ');
+      console.log('═══════════════════════════════════════');
+      spotShadow.strategies.forEach(strategy => {
+        if (!strategy.error) {
+          console.log('');
+          console.log(`📌 ${strategy.strategy}`);
+          console.log(`   ${strategy.description}`);
+        }
       });
+      console.log('');
     }
     
     // ===== COMBINED TOTAL =====

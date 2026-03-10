@@ -267,7 +267,210 @@ function formatReport(report) {
   return output;
 }
 
+/**
+ * Generate coaching report for Spot trading
+ * @param {object} spotAnalysis - Spot analysis results
+ * @returns {object} - Spot coaching report
+ */
+function generateSpotCoachReport(spotAnalysis) {
+  const report = {
+    summary: generateSpotSummary(spotAnalysis),
+    insights: generateSpotInsights(spotAnalysis),
+    recommendations: generateSpotRecommendations(spotAnalysis)
+  };
+  
+  return report;
+}
+
+/**
+ * Generate Spot summary
+ */
+function generateSpotSummary(spotAnalysis) {
+  return {
+    totalTrades: spotAnalysis.totalTrades,
+    totalSymbols: spotAnalysis.totalSymbols,
+    totalVolume: spotAnalysis.totalVolume,
+    avgTradeSize: spotAnalysis.avgTradeSize,
+    commission: spotAnalysis.totalCommission
+  };
+}
+
+/**
+ * Generate Spot insights
+ */
+function generateSpotInsights(spotAnalysis) {
+  const insights = [];
+  
+  // Check trading activity
+  if (spotAnalysis.totalTrades === 0) {
+    insights.push({
+      type: 'info',
+      message: 'No Spot trades found. Start trading on Spot to see analysis!'
+    });
+    return insights;
+  }
+  
+  // Check diversification
+  if (spotAnalysis.totalSymbols < 3) {
+    insights.push({
+      type: 'tip',
+      message: `You're only trading ${spotAnalysis.totalSymbols} symbol(s). Consider diversifying across more coins to reduce risk.`
+    });
+  }
+  
+  // Check average trade size
+  const avgSize = parseFloat(spotAnalysis.avgTradeSize);
+  if (avgSize > 100) {
+    insights.push({
+      type: 'warning',
+      message: `Your average Spot trade is $${avgSize.toFixed(2)} - quite large! Consider position sizing.`
+    });
+  } else if (avgSize < 10) {
+    insights.push({
+      type: 'tip',
+      message: `Your average Spot trade is $${avgSize.toFixed(2)} - good for learning with small amounts!`
+    });
+  }
+  
+  // Check for over-trading
+  if (spotAnalysis.totalTrades > 100) {
+    insights.push({
+      type: 'warning',
+      message: `You've made ${spotAnalysis.totalTrades} Spot trades. Make sure to consider fees!`
+    });
+  }
+  
+  // Find most traded symbol
+  const symbols = spotAnalysis.symbols;
+  let mostTraded = { symbol: '', trades: 0 };
+  Object.entries(symbols).forEach(([symbol, stats]) => {
+    if (stats.trades > mostTraded.trades) {
+      mostTraded = { symbol, trades: stats.trades };
+    }
+  });
+  
+  if (mostTraded.symbol) {
+    insights.push({
+      type: 'info',
+      message: `Most traded: ${mostTraded.symbol} (${mostTraded.trades} trades)`
+    });
+  }
+  
+  // Check buy/sell ratio per symbol
+  Object.entries(symbols).forEach(([symbol, stats]) => {
+    if (stats.buys > 0 && stats.sells > 0) {
+      const buyRatio = (stats.buys / (stats.buys + stats.sells) * 100).toFixed(0);
+      if (buyRatio > 70) {
+        insights.push({
+          type: 'tip',
+          message: `${symbol}: You're mostly buying (${buyRatio}% buys). Consider taking profits!`
+        });
+      } else if (buyRatio < 30) {
+        insights.push({
+          type: 'tip',
+          message: `${symbol}: You're mostly selling (${100-buyRatio}% sells). Consider buying the dip!`
+        });
+      }
+    }
+  });
+  
+  return insights;
+}
+
+/**
+ * Generate Spot recommendations
+ */
+function generateSpotRecommendations(spotAnalysis) {
+  const recommendations = [];
+  
+  if (spotAnalysis.totalTrades === 0) {
+    recommendations.push({
+      priority: 1,
+      title: 'Start Trading on Spot',
+      description: 'Make some Spot trades to see personalized analysis!'
+    });
+    return recommendations;
+  }
+  
+  // Diversification
+  if (spotAnalysis.totalSymbols < 3) {
+    recommendations.push({
+      priority: 2,
+      title: 'Diversify Your Portfolio',
+      description: 'Consider trading more than one coin to spread risk.'
+    });
+  }
+  
+  // Position sizing
+  const avgSize = parseFloat(spotAnalysis.avgTradeSize);
+  if (avgSize > 100) {
+    recommendations.push({
+      priority: 2,
+      title: 'Reduce Position Size',
+      description: `$${avgSize.toFixed(2)} per trade is high. Try smaller amounts while learning!`
+    });
+  }
+  
+  // Fees
+  const commission = parseFloat(spotAnalysis.totalCommission);
+  if (commission > 10) {
+    recommendations.push({
+      priority: 3,
+      title: 'Watch Your Fees',
+      description: `You've paid $${commission.toFixed(2)} in fees. Consider trading less frequently!`
+    });
+  }
+  
+  return recommendations;
+}
+
+/**
+ * Format Spot report for display
+ */
+function formatSpotReport(report) {
+  let output = '';
+  
+  output += '═══════════════════════════════════════\n';
+  output += '       SPOT COACHING REPORT          \n';
+  output += '═══════════════════════════════════════\n\n';
+  
+  // Summary
+  output += '📊 SPOT SUMMARY\n';
+  output += '───────────────────────────────────────\n';
+  output += `Total Trades: ${report.summary.totalTrades}\n`;
+  output += `Symbols: ${report.summary.totalSymbols}\n`;
+  output += `Volume: $${report.summary.totalVolume} USDT\n`;
+  output += `Avg Trade: $${report.summary.avgTradeSize} USDT\n`;
+  output += `Fees Paid: ${report.summary.commission}\n\n`;
+  
+  // Insights
+  if (report.insights.length > 0) {
+    output += '💡 INSIGHTS\n';
+    output += '───────────────────────────────────────\n';
+    report.insights.forEach((insight, i) => {
+      const emoji = insight.type === 'warning' ? '⚠️' : insight.type === 'tip' ? '💡' : 'ℹ️';
+      output += `${emoji} ${insight.message}\n\n`;
+    });
+  }
+  
+  // Recommendations
+  if (report.recommendations.length > 0) {
+    output += '📋 RECOMMENDATIONS\n';
+    output += '───────────────────────────────────────\n';
+    report.recommendations.forEach((rec, i) => {
+      output += `${i + 1}. [Priority ${rec.priority}] ${rec.title}\n`;
+      output += `   ${rec.description}\n\n`;
+    });
+  }
+  
+  output += '═══════════════════════════════════════\n';
+  
+  return output;
+}
+
 module.exports = {
   generateCoachReport,
-  formatReport
+  formatReport,
+  generateSpotCoachReport,
+  formatSpotReport
 };
