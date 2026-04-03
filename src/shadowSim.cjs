@@ -12,16 +12,16 @@ function simulateImprovedRiskReward(analysis, targetRR = 4) {
   const realTrades = analysis.trades.total;
   const realWinRate = parseFloat(analysis.trades.winRate) / 100;
   const avgLoss = parseFloat(analysis.averages.avgLoss);
-  
+
   // Simulate with better R:R
   const avgWin = avgLoss * targetRR;
-  
+
   const wins = Math.round(realTrades * realWinRate);
   const losses = realTrades - wins;
-  
+
   const simulatedPnL = (wins * avgWin) + (losses * avgLoss);
   const improvement = simulatedPnL - parseFloat(analysis.pnl.realized);
-  
+
   return {
     strategy: `Improved Risk:Reward (1:${targetRR})`,
     trades: realTrades,
@@ -44,30 +44,31 @@ function simulateImprovedRiskReward(analysis, targetRR = 4) {
  */
 function simulateSelectiveTrading(analysis, minWinRate = 50) {
   const hourly = analysis.hourly;
-  
+
   // Find good hours
   const goodHours = Object.entries(hourly)
     .filter(([hour, data]) => parseInt(data.winRate) >= minWinRate)
     .map(([hour, data]) => ({
       hour: parseInt(hour),
       winRate: parseInt(data.winRate),
-      pnl: parseFloat(data.pnl)
+      pnl: parseFloat(data.pnl),
+      total: data.total
     }));
-  
+
   if (goodHours.length === 0) {
     return {
       strategy: 'Selective Trading',
       error: 'Not enough data to simulate'
     };
   }
-  
+
   // Calculate what would happen if only trading during good hours
   const goodHourPnL = goodHours.reduce((sum, h) => sum + h.pnl, 0);
   const goodHourTrades = goodHours.reduce((sum, h) => sum + h.total, 0);
-  
+
   const realPnL = parseFloat(analysis.pnl.realized);
   const improvement = goodHourPnL - realPnL;
-  
+
   return {
     strategy: `Selective Trading (${minWinRate}%+ win rate hours)`,
     goodHours: goodHours.map(h => `${h.hour}:00 UTC (${h.winRate}% WR)`),
@@ -88,26 +89,26 @@ function simulateSelectiveTrading(analysis, minWinRate = 50) {
 function simulateReducedTrading(analysis, reductionPercent = 50) {
   const realTrades = analysis.trades.total;
   const reducedTrades = Math.round(realTrades * (1 - reductionPercent / 100));
-  
+
   const realWinRate = parseFloat(analysis.trades.winRate) / 100;
   const avgWin = parseFloat(analysis.averages.avgWin);
   const avgLoss = parseFloat(analysis.averages.avgLoss);
-  
+
   // Calculate real PnL per trade
   const pnlPerTrade = parseFloat(analysis.pnl.realized) / realTrades;
-  
+
   // Simulate reduced trades
   const wins = Math.round(reducedTrades * realWinRate);
   const losses = reducedTrades - wins;
   const simulatedPnL = (wins * avgWin) + (losses * avgLoss);
-  
+
   // Also account for reduced commission
   const realCommission = parseFloat(analysis.trades.commissions);
   const reducedCommission = realCommission * (1 - reductionPercent / 100);
   const commissionSavings = realCommission - reducedCommission;
-  
+
   const totalImprovement = (simulatedPnL - parseFloat(analysis.pnl.realized)) + commissionSavings;
-  
+
   return {
     strategy: `Reduced Trading (-${reductionPercent}% trades)`,
     originalTrades: realTrades,
@@ -130,25 +131,25 @@ function simulateDCA(analysis) {
   // DCA reduces average entry price
   // Simulate: instead of single entries, split into 3 entries at different prices
   // This typically improves win rate by 10-20%
-  
+
   const realWinRate = parseFloat(analysis.trades.winRate) / 100;
   const realTrades = analysis.trades.total;
   const avgWin = parseFloat(analysis.averages.avgWin);
   const avgLoss = parseFloat(analysis.averages.avgLoss);
-  
+
   // DCA improves win rate
   const dcaWinRate = Math.min(realWinRate + 0.15, 0.7); // Cap at 70%
-  
+
   const wins = Math.round(realTrades * dcaWinRate);
   const losses = realTrades - wins;
-  
+
   // DCA also reduces average loss (better entries = smaller stops)
   const improvedAvgLoss = avgLoss * 0.8; // 20% smaller losses
   const improvedAvgWin = avgWin * 1.1; // 10% bigger wins
-  
+
   const simulatedPnL = (wins * improvedAvgWin) + (losses * improvedAvgLoss);
   const improvement = simulatedPnL - parseFloat(analysis.pnl.realized);
-  
+
   return {
     strategy: 'DCA (Dollar Cost Averaging)',
     originalWinRate: (realWinRate * 100).toFixed(0) + '%',
@@ -211,13 +212,14 @@ function simulateSpotDCA(spotAnalysis) {
       error: 'No trades to simulate'
     };
   }
-  
-  // DCA typically improves entry by 10-20%
-  const improvedVolume = parseFloat(spotAnalysis.totalVolume) * 1.15;
-  
+
+  // If totalVolume is available, use it; otherwise estimate from totalTrades
+  const baseVolume = parseFloat(spotAnalysis.totalVolume) || (spotAnalysis.totalTrades * 1000);
+  const improvedVolume = baseVolume * 1.15;
+
   return {
     strategy: 'Dollar Cost Averaging (DCA)',
-    originalVolume: spotAnalysis.totalVolume,
+    originalVolume: spotAnalysis.totalVolume || String(spotAnalysis.totalTrades * 1000),
     simulatedVolume: improvedVolume.toFixed(2),
     improvement: 'Better average entry price',
     description: 'Split your purchases into multiple buys at different prices to reduce average entry cost.'
@@ -234,11 +236,11 @@ function simulateSpotHold(spotAnalysis) {
       error: 'No trades to simulate'
     };
   }
-  
+
   // Active trading vs holding
   const activeTrades = spotAnalysis.totalTrades;
   const holdingTrades = Math.ceil(activeTrades * 0.2); // Only 5 trades a year
-  
+
   return {
     strategy: 'Buy and Hold',
     originalTrades: activeTrades,
