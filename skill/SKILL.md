@@ -1,9 +1,22 @@
+```yaml
 ---
 name: shadow-binance-bot
-description: AI trading coach for Binance
+description: AI-powered read-only trading analysis coach that simulates alternative strategies against your Binance trade history.
 version: 1.0.0
 author: acevod
+homepage: https://github.com/acevod/Shadow-Binance-Bot
+requires:
+  env:
+    - BINANCE_API_KEY
+    - BINANCE_API_SECRET
+files:
+  - src/index.cjs
+  - src/binance.cjs
+  - src/analyzer.cjs
+  - src/shadowSim.cjs
+  - src/coach.cjs
 ---
+```
 
 # Shadow Mode Trading Trainer
 
@@ -127,7 +140,7 @@ Before running the skill, set your Binance API credentials as environment variab
 Quick setup (terminal)
 ```bash
 export BINANCE_API_KEY="your_api_key_here"
-export BINANCE_SECRET_KEY="your_secret_key_here"
+export BINANCE_API_SECRET="your_api_secret_here"
 ```
 
 Or use a .env file (recommended for local development):
@@ -140,7 +153,7 @@ touch .env
 Add your keys (don't forget the quotes!)
 ```bash
 echo 'BINANCE_API_KEY="your_api_key_here"' >> .env
-echo 'BINANCE_SECRET_KEY="your_secret_key_here"' >> .env
+echo 'BINANCE_API_SECRET="your_api_secret_here"' >> .env
 ```
 
 ⚠️ Important: Add .env to your .gitignore to prevent accidentally committing keys!
@@ -164,6 +177,39 @@ echo 'BINANCE_SECRET_KEY="your_secret_key_here"' >> .env
 
 ---
 
+## External Endpoints
+
+This skill communicates with the following third-party APIs:
+
+- **Binance Spot API** (`api.binance.com`) — Read-only access to account balances, trade history, and spot positions.
+- **Binance Futures API** (`fapi.binance.com`) — Read-only access to futures income history, account balance, and positions.
+
+No other external services are used. All API calls are made directly to Binance endpoints over HTTPS.
+
+---
+
+## Security & Privacy
+
+- **Read-only access only.** The skill never places trades, modifies positions, or withdraws funds. Binance API keys must have trading permissions disabled.
+- **No data storage.** Trading data is processed in-memory and never persisted to disk or shared with any third party.
+- **Credentials not stored.** API keys are read from environment variables or a local `.env` file and are never hardcoded or committed to version control.
+- **HTTPS only.** All API communication uses TLS-encrypted HTTPS connections to Binance.
+- **.gitignore enforced.** The `.env` file and `config.env` are explicitly excluded from version control.
+
+---
+
+## Trust Statement
+
+This skill is a **read-only educational analysis tool**. It does not:
+- Execute trades automatically
+- Provide financial or investment advice
+- Access withdrawal or deposit functions
+- Store or transmit user data to any service other than Binance
+
+All simulations are based on historical data and are for educational purposes only. Past performance does not guarantee future results.
+
+---
+
 ## Binance Endpoints Used
 
 Example endpoints that may be used:
@@ -171,7 +217,7 @@ Example endpoints that may be used:
 - `/api/v3/account`
 - `/api/v3/myTrades`
 - `/fapi/v2/account`
-- `/fapi/v1/userTrades`
+- `/fapi/v1/income`
 
 These endpoints allow the system to analyze trading history and portfolio performance.
 

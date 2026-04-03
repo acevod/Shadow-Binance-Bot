@@ -56,9 +56,9 @@ async function main() {
   
   // Load config
   const config = loadConfig();
-  const { BINANCE_API_KEY, BINANCE_SECRET_KEY } = config;
-  
-  if (!BINANCE_API_KEY || !BINANCE_SECRET_KEY) {
+  const { BINANCE_API_KEY, BINANCE_API_SECRET } = config;
+
+  if (!BINANCE_API_KEY || !BINANCE_API_SECRET) {
     console.error('❌ API keys not found in config.env');
     process.exit(1);
   }
@@ -66,7 +66,7 @@ async function main() {
   console.log('📡 Connecting to Binance...');
   
   // Test connection
-  const connected = await binance.testConnection(BINANCE_API_KEY, BINANCE_SECRET_KEY);
+  const connected = await binance.testConnection(BINANCE_API_KEY, BINANCE_API_SECRET);
   if (!connected) {
     console.error('❌ Failed to connect to Binance. Check your API keys.');
     process.exit(1);
@@ -82,7 +82,7 @@ async function main() {
     console.log('');
     
     console.log('📥 Fetching Futures trading history...');
-    const incomeHistory = await binance.getFuturesIncome(BINANCE_API_KEY, BINANCE_SECRET_KEY, 365);
+    const incomeHistory = await binance.getFuturesIncome(BINANCE_API_KEY, BINANCE_API_SECRET, 365);
     
     if (!incomeHistory || incomeHistory.length === 0) {
       console.log('⚠️ No Futures trading history found!');
@@ -115,7 +115,7 @@ async function main() {
     
     console.log('📥 Fetching Spot trading history...');
     const spotSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'SHIBUSDT'];
-    const allSpotTrades = await binance.getAllSpotTrades(BINANCE_API_KEY, BINANCE_SECRET_KEY, spotSymbols);
+    const allSpotTrades = await binance.getAllSpotTrades(BINANCE_API_KEY, BINANCE_API_SECRET, spotSymbols);
     
     const spotAnalysis = analyzer.analyzeSpotTrades(allSpotTrades);
     

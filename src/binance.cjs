@@ -21,6 +21,15 @@ function generateSignature(queryString, secret) {
 }
 
 /**
+ * Check if a Binance API response is an error
+ * @param {object} data - Response data
+ * @returns {boolean} - True if error
+ */
+function isBinanceError(data) {
+  return data && typeof data === 'object' && typeof data.code === 'number' && data.msg;
+}
+
+/**
  * Make HTTP request to Binance API
  * @param {string} hostname - API hostname
  * @param {string} path - API path
@@ -45,7 +54,7 @@ function makeRequest(hostname, path, method, headers = {}) {
           const parsed = JSON.parse(data);
           resolve(parsed);
         } catch (e) {
-          resolve(data);
+          reject(new Error(`Failed to parse response: ${data}`));
         }
       });
     });
@@ -71,6 +80,10 @@ async function getSpotBalance(apiKey, apiSecret) {
     'X-MBX-APIKEY': apiKey
   });
 
+  if (isBinanceError(data)) {
+    throw new Error(`Binance API Error [${data.code}]: ${data.msg}`);
+  }
+
   return data;
 }
 
@@ -89,6 +102,10 @@ async function getFuturesBalance(apiKey, apiSecret) {
   const data = await makeRequest(BASE_FUTURES_URL, path, 'GET', {
     'X-MBX-APIKEY': apiKey
   });
+
+  if (isBinanceError(data)) {
+    throw new Error(`Binance API Error [${data.code}]: ${data.msg}`);
+  }
 
   return data;
 }
@@ -111,6 +128,10 @@ async function getFuturesIncome(apiKey, apiSecret, daysBack = 365) {
     'X-MBX-APIKEY': apiKey
   });
 
+  if (isBinanceError(data)) {
+    throw new Error(`Binance API Error [${data.code}]: ${data.msg}`);
+  }
+
   return data;
 }
 
@@ -132,6 +153,10 @@ async function getSpotTrades(apiKey, apiSecret, symbol = 'BTCUSDT', limit = 100)
     'X-MBX-APIKEY': apiKey
   });
 
+  if (isBinanceError(data)) {
+    throw new Error(`Binance API Error [${data.code}]: ${data.msg}`);
+  }
+
   return data;
 }
 
@@ -144,18 +169,18 @@ async function getSpotTrades(apiKey, apiSecret, symbol = 'BTCUSDT', limit = 100)
  */
 async function getAllSpotTrades(apiKey, apiSecret, symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT']) {
   const allTrades = {};
-  
+
   for (const symbol of symbols) {
     try {
       const trades = await getSpotTrades(apiKey, apiSecret, symbol, 100);
-      if (trades && trades.length > 0 && !trades.code) {
+      if (Array.isArray(trades) && trades.length > 0) {
         allTrades[symbol] = trades;
       }
     } catch (e) {
-      // Skip symbols with errors
+      console.error(`Failed to fetch trades for ${symbol}: ${e.message}`);
     }
   }
-  
+
   return allTrades;
 }
 
