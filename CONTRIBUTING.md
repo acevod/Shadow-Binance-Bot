@@ -22,6 +22,7 @@ Found a bug or have a feature request? Open an issue on GitHub with a clear desc
 - Add JSDoc comments for all public functions.
 - Keep lines under **120 characters**.
 - No trailing whitespace.
+- This project uses **EditorConfig**. Please install the plugin for your editor.
 
 ### Security
 

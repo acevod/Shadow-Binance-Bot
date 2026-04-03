@@ -10,6 +10,19 @@ const https = require('https');
 const BASE_SPOT_URL = 'api.binance.com';
 const BASE_FUTURES_URL = 'fapi.binance.com';
 
+// Retry configuration
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 500;
+
+/**
+ * Delay utility for retry backoff
+ * @param {number} ms - Milliseconds to wait
+ * @returns {Promise<void>}
+ */
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 /**
  * Generate signature for Binance API
  * @param {string} queryString - The query string to sign
@@ -30,21 +43,79 @@ function isBinanceError(data) {
 }
 
 /**
- * Make HTTP request to Binance API
+ * Determine if an error is retryable
+ * @param {Error|object} error - Error or response data
+ * @returns {boolean} - True if safe to retry
+ */
+function isRetryable(error) {
+  // Network/transport errors are retryable
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    if (msg.includes('timeout') || msg.includes('econnreset') || msg.includes('econnrefused') || msg.includes('socket')) {
+      return true;
+    }
+  }
+  // Binance error codes that are retryable
+  // -1003 = RATE_LIMIT, -1023 = Maintenance, -1001 = DISCONNECTED
+  if (error && error.code && [-1003, -1023, -1001].includes(error.code)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Make HTTP request to Binance API with automatic retry
  * @param {string} hostname - API hostname
  * @param {string} path - API path
  * @param {string} method - HTTP method
  * @param {object} headers - Request headers
  * @returns {Promise<object>} - API response
  */
-function makeRequest(hostname, path, method, headers = {}) {
+async function makeRequest(hostname, path, method, headers = {}) {
+  let lastError;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const result = await _doRequest(hostname, path, method, headers);
+
+      // If Binance returned a retryable error, retry
+      if (isRetryable(result)) {
+        if (attempt < MAX_RETRIES) {
+          const backoffMs = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+          console.error(`[Retry ${attempt}/${MAX_RETRIES}] Rate-limited. Waiting ${backoffMs}ms...`);
+          await delay(backoffMs);
+          continue;
+        }
+      }
+
+      return result;
+    } catch (err) {
+      lastError = err;
+
+      if (isRetryable(err) && attempt < MAX_RETRIES) {
+        const backoffMs = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+        console.error(`[Retry ${attempt}/${MAX_RETRIES}] ${err.message}. Waiting ${backoffMs}ms...`);
+        await delay(backoffMs);
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  throw lastError;
+}
+
+/**
+ * Internal: perform a single HTTP request
+ * @param {string} hostname - API hostname
+ * @param {string} path - API path
+ * @param {string} method - HTTP method
+ * @param {object} headers - Request headers
+ * @returns {Promise<object>} - API response
+ */
+function _doRequest(hostname, path, method, headers = {}) {
   return new Promise((resolve, reject) => {
-    const options = {
-      hostname,
-      path,
-      method,
-      headers
-    };
+    const options = { hostname, path, method, headers };
 
     const req = https.request(options, (res) => {
       let data = '';
@@ -59,11 +130,20 @@ function makeRequest(hostname, path, method, headers = {}) {
       });
     });
 
-    req.on('error', reject);
+    req.on('error', (err) => {
+      // Wrap as retryable if it's a network error
+      if (isRetryable(err)) {
+        reject(err);
+      } else {
+        reject(new Error(`Network error: ${err.message}`));
+      }
+    });
+
     req.setTimeout(10000, () => {
       req.destroy();
       reject(new Error('Request timed out after 10 seconds'));
     });
+
     req.end();
   });
 }
