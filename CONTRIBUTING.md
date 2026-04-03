@@ -14,7 +14,7 @@ Found a bug or have a feature request? Open an issue on GitHub with a clear desc
 2. Keep changes **focused and small** — one feature or fix per PR.
 3. Write a clear PR description explaining **what** changed and **why**.
 4. Test your changes locally before submitting.
-5. Ensure `npm test` passes (if tests exist).
+5. Ensure `npm test` passes.
 
 ### Code Style
 
