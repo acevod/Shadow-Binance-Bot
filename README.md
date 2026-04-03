@@ -130,7 +130,7 @@ Shadow Binance Bot can help traders:
 
 - OpenClaw AI Agent Framework
 - Binance API
-- Large Language Models (LLM)
+- Large Language Models
 - Trading Strategy Simulation
 
 ---
