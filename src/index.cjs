@@ -1,4 +1,5 @@
-# Shadow Binance Bot - Main Entry Point
+/**
+ * Shadow Binance Bot - Main Entry Point
  * AI-powered trading coach that analyzes your Binance trades
  * and simulates alternative strategies
  *
@@ -16,16 +17,17 @@ const analyzer = require('./analyzer.cjs');
 const shadowSim = require('./shadowSim.cjs');
 const coach = require('./coach.cjs');
 
+// Default spot symbols — can be overridden via SPOT_SYMBOLS in config.env
+const DEFAULT_SPOT_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'SHIBUSDT'];
+
 // Load configuration
 function loadConfig() {
   const configPath = path.join(__dirname, '..', 'config.env');
 
+  // If config.env doesn't exist, return empty config (triggers Demo Mode)
   if (!fs.existsSync(configPath)) {
-    console.error('x config.env not found!');
-    console.log('Please create config.env with:');
-    console.log('  BINANCE_API_KEY=your_api_key');
-    console.log('  BINANCE_API_SECRET=your_api_secret');
-    process.exit(1);
+    console.log('Note: config.env not found. Running in Demo Mode.');
+    return {};
   }
 
   const config = {};
@@ -44,6 +46,60 @@ function loadConfig() {
   return config;
 }
 
+// Generate mock data for Demo Mode
+function generateDemoData() {
+  console.log('');
+  console.log('+==============================================+');
+  console.log('|     DEMO MODE - Using Sample Data           |');
+  console.log('+==============================================+');
+  console.log('');
+  console.log('Note: No API keys found. Running with simulated');
+  console.log('demo data to show how the bot works.');
+  console.log('');
+
+  const now = Date.now();
+  const HOUR = 60 * 60 * 1000;
+  const DAY = 24 * HOUR;
+
+  // Generate 30 days of mock futures income
+  const incomeHistory = [];
+  let cumulativePnL = 0;
+  for (let i = 0; i < 60; i++) {
+    const isWin = Math.random() > 0.45; // ~55% win rate
+    const amount = isWin
+      ? (Math.random() * 80 + 10).toFixed(4)
+      : (-(Math.random() * 30 + 5)).toFixed(4);
+    cumulativePnL += parseFloat(amount);
+    incomeHistory.push({
+      incomeType: 'REALIZED_PNL',
+      income: String(amount),
+      time: now - (i * DAY * 0.5) // 60 records spread over 30 days
+    });
+  }
+
+  // Add some commission and funding
+  incomeHistory.push({ incomeType: 'COMMISSION', income: '-2.50', time: now - DAY });
+  incomeHistory.push({ incomeType: 'FUNDING_FEE', income: '-1.20', time: now - DAY * 2 });
+
+  // Sort by time ascending
+  incomeHistory.sort((a, b) => a.time - b.time);
+
+  // Generate mock spot trades
+  const spotTrades = {
+    BTCUSDT: [
+      { id: 1, qty: '0.50', price: '62000', commission: '0.00025', isBuyer: true, time: now - DAY * 5 },
+      { id: 2, qty: '0.30', price: '64000', commission: '0.00015', isBuyer: false, time: now - DAY * 3 },
+      { id: 3, qty: '0.20', price: '61000', commission: '0.00010', isBuyer: true, time: now - DAY * 1 },
+    ],
+    ETHUSDT: [
+      { id: 4, qty: '2.00', price: '3400', commission: '0.00100', isBuyer: true, time: now - DAY * 4 },
+      { id: 5, qty: '1.50', price: '3500', commission: '0.00075', isBuyer: false, time: now - DAY * 2 },
+    ]
+  };
+
+  return { incomeHistory, spotTrades, isDemo: true };
+}
+
 // Main function
 async function main() {
   console.log('');
@@ -55,11 +111,52 @@ async function main() {
 
   // Load config
   const config = loadConfig();
-  const { BINANCE_API_KEY, BINANCE_API_SECRET } = config;
+  const { BINANCE_API_KEY, BINANCE_API_SECRET, SPOT_SYMBOLS } = config;
 
-  if (!BINANCE_API_KEY || !BINANCE_API_SECRET) {
-    console.error('x API keys not found in config.env');
-    process.exit(1);
+  // Parse spot symbols from config (comma-separated) or use defaults
+  const spotSymbols = SPOT_SYMBOLS
+    ? SPOT_SYMBOLS.split(',').map(s => s.trim())
+    : DEFAULT_SPOT_SYMBOLS;
+
+  // Check if running in demo mode (no API keys)
+  const isDemoMode = !BINANCE_API_KEY || !BINANCE_API_SECRET;
+
+  if (isDemoMode) {
+    const { incomeHistory, spotTrades } = generateDemoData();
+
+    // ===== DEMO FUTURES ANALYSIS =====
+    console.log('============================================');
+    console.log('         FUTURES ANALYSIS [DEMO]            ');
+    console.log('============================================');
+    console.log('');
+
+    const futuresAnalysis = analyzer.analyzeFuturesIncome(incomeHistory);
+    const futuresShadow = shadowSim.generateShadowComparison(futuresAnalysis);
+    const futuresCoach = coach.generateCoachReport(futuresAnalysis, futuresShadow);
+    console.log(coach.formatReport(futuresCoach));
+
+    // ===== DEMO SPOT ANALYSIS =====
+    console.log('');
+    console.log('============================================');
+    console.log('           SPOT ANALYSIS [DEMO]             ');
+    console.log('============================================');
+    console.log('');
+
+    const spotAnalysis = analyzer.analyzeSpotTrades(spotTrades);
+    const spotShadow = shadowSim.generateSpotShadowComparison(spotAnalysis);
+    const spotCoach = coach.generateSpotCoachReport(spotAnalysis);
+    console.log(coach.formatSpotReport(spotCoach));
+
+    console.log('============================================');
+    console.log('         END OF DEMO MODE                   ');
+    console.log('============================================');
+    console.log('');
+    console.log('To run with your real data:');
+    console.log('  1. Copy config.env.example to config.env');
+    console.log('  2. Add your Binance API keys');
+    console.log('  3. Run: node src/index.cjs');
+    console.log('');
+    return;
   }
 
   console.log('Connecting to Binance...');
@@ -113,7 +210,6 @@ async function main() {
     console.log('');
 
     console.log('Fetching Spot trading history...');
-    const spotSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'SHIBUSDT'];
     const allSpotTrades = await binance.getAllSpotTrades(BINANCE_API_KEY, BINANCE_API_SECRET, spotSymbols);
 
     const spotAnalysis = analyzer.analyzeSpotTrades(allSpotTrades);
