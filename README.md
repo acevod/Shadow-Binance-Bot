@@ -195,6 +195,9 @@ This project **does not provide financial advice or trading signals**.
 Shadow-Binance-Bot/
   README.md
   LICENSE
+  package.json
+  CONTRIBUTING.md
+  CHANGELOG.md
   .gitignore
   config.env.example
   skill/
