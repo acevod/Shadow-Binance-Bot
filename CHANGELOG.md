@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v1.2.0] - 2026-04-04
+
+### Added
+- **Demo Mode** with realistic mock data when no API keys are configured
+- **Configurable Spot symbols** via `SPOT_SYMBOLS` env var in `config.env`
+- **GitHub Actions CI** workflow (`.github/workflows/test.yml`) for automated testing
+- **CODEOWNERS** file for PR routing
+- **`SPOT_SYMBOLS` to `requires.env`** in SKILL.md
+
+### Fixed
+- `SKILL.md` moved from `skill/SKILL.md` to repo root (ClawHub requirement)
+- `.gitignore` title comment removed (was breaking standard format)
+- README step numbering fixed for Binance API key creation instructions
+- README project structure updated to reflect `SKILL.md` at root and `tests/` directory
+- CONTRIBUTING.md updated — "if tests exist" hedge removed (69 tests now exist)
+
+### Security
+- `config.env.example` now includes IP restriction reminder
+
+---
+
 ## [v1.1.0] - 2026-04-04
 
 ### Added
