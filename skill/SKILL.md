@@ -1,3 +1,10 @@
+---
+name: shadow-binance-bot
+description: AI trading coach for Binance
+version: 1.0.0
+author: acevod
+---
+
 # Shadow Mode Trading Trainer
 
 ---
