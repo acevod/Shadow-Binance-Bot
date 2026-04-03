@@ -196,18 +196,21 @@ Shadow-Binance-Bot/
   README.md
   LICENSE
   package.json
+  SKILL.md
   CONTRIBUTING.md
   CHANGELOG.md
   .gitignore
+  .editorconfig
   config.env.example
-  skill/
-    SKILL.md
   src/
     index.cjs         # Main entry point
     binance.cjs       # Binance API connection
     analyzer.cjs      # Trade analysis engine
     shadowSim.cjs     # Shadow strategy simulation
     coach.cjs         # AI coaching feedback
+  tests/
+    analyzer.test.cjs
+    shadowSim.test.cjs
   assets/
     architecture.png
     shadow-simulation.png
@@ -244,11 +247,12 @@ node src/index.cjs
 ### Get Your Binance API Key
 
 1. Log in to Binance
-2. Go to Account → API Management API (read-only permissions recommended)
-4. Copy
+2. Go to Account -> API Management
 3. Create your API Key and Secret Key
+4. Set Read-Only permissions
+5. Copy your API Key and Secret Key
 
-⚠️ Never share your Secret Key!
+⚠️ Never share your Secret Key! Restrict the key to your IP address in Binance API Settings.
 
 ---
 
