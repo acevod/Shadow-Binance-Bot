@@ -1,5 +1,3 @@
-# Shadow Binance Bot - Git Ignore
-
 # API Keys - NEVER commit real keys!
 config.env
 
