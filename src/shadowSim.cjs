@@ -63,7 +63,7 @@ function simulateSelectiveTrading(analysis, minWinRate = 50) {
   
   // Calculate what would happen if only trading during good hours
   const goodHourPnL = goodHours.reduce((sum, h) => sum + h.pnl, 0);
-  const goodHourTrades = goodHours.reduce((sum, h) => sum + (h.winRate > 0 ? 10 : 5), 0); // Estimated
+  const goodHourTrades = goodHours.reduce((sum, h) => sum + h.total, 0);
   
   const realPnL = parseFloat(analysis.pnl.realized);
   const improvement = goodHourPnL - realPnL;
@@ -71,6 +71,7 @@ function simulateSelectiveTrading(analysis, minWinRate = 50) {
   return {
     strategy: `Selective Trading (${minWinRate}%+ win rate hours)`,
     goodHours: goodHours.map(h => `${h.hour}:00 UTC (${h.winRate}% WR)`),
+    simulatedTrades: goodHourTrades,
     simulatedPnL: goodHourPnL.toFixed(4),
     realPnL: realPnL.toFixed(4),
     improvement: improvement.toFixed(4),
