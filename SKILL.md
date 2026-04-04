@@ -2,7 +2,7 @@
 ---
 name: shadow-binance-bot
 description: AI-powered read-only trading analysis coach that simulates alternative strategies against your Binance trade history.
-version: 1.2.0
+version: 1.3.0
 author: acevod
 homepage: https://github.com/acevod/Shadow-Binance-Bot
 requires:
@@ -147,21 +147,24 @@ The skill does not require trading permissions.
 
 ### Setup
 
-1. Copy `config.env.example` to `config.env`:
-```bash
-cp config.env.example config.env
-```
+This skill supports two credential input methods:
 
-2. Add your Binance API credentials to `config.env`:
-```
-BINANCE_API_KEY=your_api_key_here
-BINANCE_API_SECRET=your_api_secret_here
-```
-
-3. Run the bot:
+**Method 1 — Environment variables (recommended for platforms)**
+Set credentials as standard environment variables before running:
 ```bash
+export BINANCE_API_KEY=your_api_key
+export BINANCE_API_SECRET=your_api_secret
 node src/index.cjs
 ```
+
+**Method 2 — Local config.env file (for local development)**
+```bash
+cp config.env.example config.env
+nano config.env  # fill in your keys
+node src/index.cjs
+```
+
+Method 1 takes priority. If `BINANCE_API_KEY` and `BINANCE_API_SECRET` are set as environment variables, the `config.env` file is not required.
 
 ### Getting Your Binance API Key
 
@@ -197,7 +200,7 @@ No other external services are used. All API calls are made directly to Binance 
 
 - **Read-only access only.** The skill never places trades, modifies positions, or withdraws funds. Binance API keys must have trading permissions disabled.
 - **No data storage.** Trading data is processed in-memory and never persisted to disk or shared with any third party.
-- **Credentials not stored.** API keys are read from the local `config.env` file and are never hardcoded or committed to version control.
+- **Credentials via env vars or config file.** API keys are read from `process.env` first (for platform injection), falling back to a local `config.env` file for development. Keys are never hardcoded or committed to version control.
 - **HTTPS only.** All API communication uses TLS-encrypted HTTPS connections to Binance.
 - **.gitignore enforced.** The `config.env` file is explicitly excluded from version control.
 

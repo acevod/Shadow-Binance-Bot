@@ -5,7 +5,12 @@
  *
  * Usage: node src/index.cjs
  *
- * Requires: Set BINANCE_API_KEY and BINANCE_API_SECRET in config.env
+ * Usage: node src/index.cjs
+ *
+ * Credentials: Set BINANCE_API_KEY and BINANCE_API_SECRET via:
+ *   1. Environment variables (recommended — works on all platforms)
+ *   2. Local config.env file (for local development)
+ *   See config.env.example for all supported variables.
  */
 
 const fs = require('fs');
@@ -20,11 +25,23 @@ const coach = require('./coach.cjs');
 // Default spot symbols — can be overridden via SPOT_SYMBOLS in config.env
 const DEFAULT_SPOT_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'SHIBUSDT'];
 
-// Load configuration
+// Load configuration.
+// Priority: process.env (standard injection) > config.env (local dev override).
+// Platforms that inject BINANCE_API_KEY/BINANCE_API_SECRET as environment
+// variables will work automatically. Local developers can also use config.env.
 function loadConfig() {
+  const apiKey = process.env.BINANCE_API_KEY;
+  const apiSecret = process.env.BINANCE_API_SECRET;
+  const spotSymbols = process.env.SPOT_SYMBOLS;
+
+  // If env vars are already set (platform injection), use them directly
+  if (apiKey && apiSecret) {
+    return { BINANCE_API_KEY: apiKey, BINANCE_API_SECRET: apiSecret, SPOT_SYMBOLS: spotSymbols || undefined };
+  }
+
+  // Otherwise fall back to local config.env for development
   const configPath = path.join(__dirname, '..', 'config.env');
 
-  // If config.env doesn't exist, return empty config (triggers Demo Mode)
   if (!fs.existsSync(configPath)) {
     console.log('Note: config.env not found. Running in Demo Mode.');
     return {};
@@ -152,9 +169,10 @@ async function main() {
     console.log('============================================');
     console.log('');
     console.log('To run with your real data:');
-    console.log('  1. Copy config.env.example to config.env');
-    console.log('  2. Add your Binance API keys');
-    console.log('  3. Run: node src/index.cjs');
+    console.log('  1. Set BINANCE_API_KEY and BINANCE_API_SECRET');
+    console.log('     - As environment variables (recommended), OR');
+    console.log('     - Copy config.env.example to config.env and fill in keys');
+    console.log('  2. Run: node src/index.cjs');
     console.log('');
     return;
   }

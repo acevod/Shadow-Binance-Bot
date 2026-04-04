@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v1.3.0] - 2026-04-04
+
+### Fixed — Credentials & Platform Compatibility
+- `src/index.cjs` now reads `process.env` first for `BINANCE_API_KEY`, `BINANCE_API_SECRET`, and `SPOT_SYMBOLS`. Platforms that inject credentials as environment variables will work automatically. Falls back to `config.env` for local development.
+- SKILL.md and README updated to document both credential methods (env vars and config file).
+- README now clearly shows Method 1 (env vars) as the recommended approach, with Method 2 (config file) as a local dev alternative.
+- `config.env.example` clarifies the file is optional when env vars are set.
+
+### Security
+- SKILL.md Security & Privacy section updated to reflect dual credential method.
+
+---
+
 ## [v1.2.0] - 2026-04-04
 
 ### Added

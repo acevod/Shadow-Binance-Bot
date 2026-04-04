@@ -222,27 +222,27 @@ Shadow-Binance-Bot/
 
 ### Quick Start
 
-1. Clone the repo:
+This bot supports two credential methods. **Use env vars (Method 1) if your platform supports it.**
+
+#### Method 1 — Environment variables (recommended)
+
+```bash
+export BINANCE_API_KEY=your_api_key
+export BINANCE_API_SECRET=your_api_secret
+node src/index.cjs
+```
+
+#### Method 2 — Local config file (for local development)
+
 ```bash
 git clone https://github.com/acevod/Shadow-Binance-Bot.git
 cd Shadow-Binance-Bot
-```
-
-2. Copy the config template:
-```bash
 cp config.env.example config.env
-```
-
-3. Add your Binance API keys to `config.env`:
-```
-BINANCE_API_KEY=your_api_key_here
-BINANCE_API_SECRET=your_secret_key_here
-```
-
-4. Run the bot:
-```bash
+nano config.env  # fill in your keys
 node src/index.cjs
 ```
+
+**Note:** If `BINANCE_API_KEY` and `BINANCE_API_SECRET` are set as environment variables, `config.env` is not required.
 
 ### Get Your Binance API Key
 
@@ -251,8 +251,9 @@ node src/index.cjs
 3. Create your API Key and Secret Key
 4. Set Read-Only permissions
 5. Copy your API Key and Secret Key
+6. **Restrict the key to your IP address** (required for platform deployments)
 
-⚠️ Never share your Secret Key! Restrict the key to your IP address in Binance API Settings.
+Never share your Secret Key! Restrict the key to your IP address in Binance API Settings.
 
 ---
 
