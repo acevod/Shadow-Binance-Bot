@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v1.3.2] - 2026-04-06
+
+### Fixed — Registry Metadata Integrity
+- Added explicit `registry:` block to SKILL.md metadata containing:
+  - `platform: openclaw` and `runtime: node >=18.0.0`
+  - Full credential descriptions (`BINANCE_API_KEY (required)`, etc.)
+  - Security posture (`capabilities: read-only, no-trading, no-withdrawal`)
+- This addresses the LLM scanner concern about a mismatch between "registry metadata shown to the platform" vs. SKILL.md
+- The `requires:` section continues to list env vars and binaries as before for backward compatibility
+
+### Security
+- Added `license: MIT` to SKILL.md metadata block
+- `registry.capabilities` now explicitly declares read-only/no-trading/no-withdrawal posture
+- SKILL.md and README already recommend read-only API keys and IP restriction — this update makes that explicit in registry metadata
+
+---
+
 ## [v1.3.1] - 2026-04-05
 
 ### Fixed — Registry Metadata Consistency
