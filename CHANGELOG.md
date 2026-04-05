@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v1.3.3] - 2026-04-06
+
+### Fixed — Registry Metadata Integrity (Final)
+- Added `metadata.openclaw` block to SKILL.md YAML frontmatter with explicit:
+  - `requires.env` listing all three environment variables
+  - `requires.bins` listing Node.js >=18 runtime requirement
+  - `security.credentials` declaring BINANCE_API_KEY and BINANCE_API_SECRET
+  - `security.posture: read-only`, `trading: false`, `withdrawal: false`
+- This ensures the registry-level metadata shown at the top of submission is **identical** to what SKILL.md requires, closing the last remaining gap
+- The `registry:` block (added in v1.3.2) now has a parallel `metadata.openclaw.requires` section so **both** the platform's registry summary **and** the openclaw metadata block declare the same credentials and runtime requirements
+
+### Security Posture (now explicit in metadata)
+- `metadata.openclaw.security` declares: read-only posture, no trading, no withdrawal
+- Platform operators can confirm the skill only reads Binance data and never places orders or moves funds
+
+---
+
 ## [v1.3.2] - 2026-04-06
 
 ### Fixed — Registry Metadata Integrity
