@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v1.3.1] - 2026-04-05
+
+### Fixed — Registry Metadata Consistency
+- SKILL.md registry metadata now includes `binaries: node >=18.0.0` requirement (was previously omitted)
+- SKILL.md `requires.env` section already correctly listed `BINANCE_API_KEY`, `BINANCE_API_SECRET`, and `SPOT_SYMBOLS` — no change needed there
+- Version bumped to `1.3.1` to reflect metadata correction
+
+### Security
+- Registry metadata now accurately reflects runtime requirements (Node.js) and credentials (env vars)
+- No code changes — metadata only
+
+---
+
 ## [v1.3.0] - 2026-04-04
 
 ### Fixed — Credentials & Platform Compatibility
