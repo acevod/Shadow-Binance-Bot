@@ -1,11 +1,11 @@
 {
   "name": "shadow-binance-bot",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "AI-powered read-only trading analysis coach that simulates alternative strategies against your Binance trade history.",
   "main": "src/index.cjs",
   "scripts": {
     "start": "node src/index.cjs",
-    "test": "node tests/analyzer.test.cjs && node tests/shadowSim.test.cjs && node tests/binance.test.cjs"
+    "test": "node tests/analyzer.test.cjs && node tests/shadowSim.test.cjs && node tests/binance.test.cjs && node tests/coach.test.cjs"
   },
   "engines": {
     "node": ">=18.0.0"
