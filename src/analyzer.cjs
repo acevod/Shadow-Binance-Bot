@@ -21,53 +21,45 @@ const THRESHOLDS = {
  * @returns {object} - Analysis results
  */
 function analyzeFuturesIncome(incomeHistory) {
-  if (!Array.isArray(incomeHistory)) {
-    incomeHistory = [];
-  }
+  if (!Array.isArray(incomeHistory)) incomeHistory = [];
 
-  // Filter only realized PnL
-  const pnlTrades = incomeHistory.filter(i => i.incomeType === 'REALIZED_PNL');
-  const commissions = incomeHistory.filter(i => i.incomeType === 'COMMISSION');
-  const fundingFees = incomeHistory.filter(i => i.incomeType === 'FUNDING_FEE');
-  const transfers = incomeHistory.filter(i => i.incomeType === 'TRANSFER');
+  const invalidRecords = [];
+  const valid = incomeHistory.filter((row, index) => {
+    const time = Number(row && row.time);
+    const income = Number(row && row.income);
+    if (!row || !Number.isFinite(time) || !Number.isFinite(income) || !row.incomeType) {
+      invalidRecords.push(index);
+      return false;
+    }
+    return true;
+  });
 
-  // Calculate totals
-  const totalRealizedPnL = pnlTrades.reduce((sum, i) => sum + parseFloat(i.income), 0);
-  const totalCommission = commissions.reduce((sum, i) => sum + parseFloat(i.income), 0);
-  const totalFunding = fundingFees.reduce((sum, i) => sum + parseFloat(i.income), 0);
-  const totalTransfers = transfers.reduce((sum, i) => sum + parseFloat(i.income), 0);
+  const pnlTrades = valid.filter(i => i.incomeType === 'REALIZED_PNL');
+  const commissions = valid.filter(i => i.incomeType === 'COMMISSION');
+  const fundingFees = valid.filter(i => i.incomeType === 'FUNDING_FEE');
+  const transfers = valid.filter(i => i.incomeType === 'TRANSFER');
 
-  // Win/Loss analysis
-  const wins = pnlTrades.filter(t => parseFloat(t.income) > 0);
-  const losses = pnlTrades.filter(t => parseFloat(t.income) < 0);
+  const sumIncome = rows => rows.reduce((sum, i) => sum + Number(i.income), 0);
+  const totalRealizedPnL = sumIncome(pnlTrades);
+  const totalCommission = sumIncome(commissions);
+  const totalFunding = sumIncome(fundingFees);
+  const totalTransfers = sumIncome(transfers);
 
+  const wins = pnlTrades.filter(t => Number(t.income) > 0);
+  const losses = pnlTrades.filter(t => Number(t.income) < 0);
   const winCount = wins.length;
   const lossCount = losses.length;
   const totalTrades = winCount + lossCount;
   const winRate = totalTrades > 0 ? (winCount / totalTrades) * 100 : 0;
 
-  // Average win/loss (avgLoss is NEGATIVE when there are losses)
-  const avgWin = winCount > 0
-    ? wins.reduce((sum, t) => sum + parseFloat(t.income), 0) / winCount
-    : 0;
-  const avgLoss = lossCount > 0
-    ? losses.reduce((sum, t) => sum + parseFloat(t.income), 0) / lossCount
-    : 0;
-
-  // Risk:Reward ratio (magnitude)
+  const avgWin = winCount > 0 ? sumIncome(wins) / winCount : 0;
+  const avgLoss = lossCount > 0 ? sumIncome(losses) / lossCount : 0;
   const riskReward = avgLoss !== 0 ? Math.abs(avgWin / avgLoss) : 0;
 
-  // Time analysis (by hour UTC)
   const hourlyStats = analyzeByHour(pnlTrades);
-
-  // Streak analysis
   const streakStats = analyzeStreaks(pnlTrades);
-
-  // Daily PnL
   const dailyPnL = analyzeDailyPnL(pnlTrades);
-
-  // Date range
-  const dates = incomeHistory.map(i => i.time).filter(t => typeof t === 'number').sort((a, b) => a - b);
+  const dates = valid.map(i => Number(i.time)).sort((a, b) => a - b);
   const startDate = dates.length > 0 ? new Date(dates[0]) : null;
   const endDate = dates.length > 0 ? new Date(dates[dates.length - 1]) : null;
 
@@ -75,14 +67,13 @@ function analyzeFuturesIncome(incomeHistory) {
     period: {
       start: startDate ? startDate.toISOString().split('T')[0] : 'N/A',
       end: endDate ? endDate.toISOString().split('T')[0] : 'N/A',
-      days: startDate && endDate
-        ? Math.max(1, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)))
-        : 0
+      days: startDate && endDate ? Math.max(1, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24))) : 0
     },
     trades: {
       total: totalTrades,
       wins: winCount,
       losses: lossCount,
+      unit: 'realized_pnl_event',
       winRate: winRate.toFixed(1),
       commissions: totalCommission.toFixed(4),
       funding: totalFunding.toFixed(4)
@@ -97,12 +88,17 @@ function analyzeFuturesIncome(incomeHistory) {
       avgLoss: avgLoss.toFixed(4),
       riskReward: riskReward.toFixed(2)
     },
+    dataQuality: {
+      inputRecords: incomeHistory.length,
+      validRecords: valid.length,
+      invalidRecords: invalidRecords.length,
+      complete: invalidRecords.length === 0
+    },
     streaks: streakStats,
     hourly: hourlyStats,
     daily: dailyPnL
   };
 }
-
 /**
  * Analyze trades by hour of day
  * @param {array} pnlTrades - Array of PnL trades (never mutated)
@@ -215,14 +211,14 @@ function analyzeBehavior(analysis) {
   if (parseFloat(analysis.trades.winRate) < THRESHOLDS.LOW_WIN_RATE) {
     insights.push({
       type: 'warning',
-      message: `Win rate is only ${analysis.trades.winRate}%. Aim for ${THRESHOLDS.MIN_WIN_RATE}%+ to be profitable.`
+      message: `Win rate is only ${analysis.trades.winRate}%. A higher win rate can help, but profitability also depends on average win/loss, fees, funding, and expectancy.`
     });
   }
 
   if (parseFloat(analysis.averages.riskReward) < THRESHOLDS.MIN_RISK_REWARD) {
     insights.push({
       type: 'warning',
-      message: `Risk:Reward is only 1:${analysis.averages.riskReward}. Use at least 1:${THRESHOLDS.MIN_RISK_REWARD} to cover losses.`
+      message: `Risk:Reward is only 1:${analysis.averages.riskReward}. Evaluate expectancy using your actual win/loss distribution and trading costs; 1:${THRESHOLDS.MIN_RISK_REWARD} is only a heuristic target.`
     });
   }
 
@@ -277,55 +273,83 @@ function analyzeSpotTrades(allTrades) {
 
   let totalTrades = 0;
   let totalVolume = 0;
-  let totalCommission = 0;
   const symbols = Object.keys(tradesBySymbol);
   const symbolStats = {};
+  const commissionByAsset = {};
+  let invalidTrades = 0;
 
   symbols.forEach(symbol => {
     const trades = tradesBySymbol[symbol];
-    if (!trades || trades.length === 0) return;
+    if (!Array.isArray(trades) || trades.length === 0) return;
 
     let symbolVolume = 0;
-    let symbolCommission = 0;
     let buys = 0;
     let sells = 0;
+    let symbolInvalid = 0;
+    const symbolCommissionByAsset = {};
 
     trades.forEach(trade => {
-      const qty = parseFloat(trade.qty) || 0;
-      const price = parseFloat(trade.price) || 0;
-      const commission = parseFloat(trade.commission) || 0;
+      const qty = Number(trade && trade.qty);
+      const price = Number(trade && trade.price);
+      if (!Number.isFinite(qty) || !Number.isFinite(price) || qty < 0 || price < 0) {
+        invalidTrades++;
+        symbolInvalid++;
+        return;
+      }
 
       symbolVolume += qty * price;
-      symbolCommission += commission;
+      const asset = typeof trade.commissionAsset === 'string' && trade.commissionAsset.trim()
+        ? trade.commissionAsset.trim().toUpperCase()
+        : 'UNKNOWN';
+      const commission = Number(trade.commission);
+      if (Number.isFinite(commission)) {
+        commissionByAsset[asset] = (commissionByAsset[asset] || 0) + commission;
+        symbolCommissionByAsset[asset] = (symbolCommissionByAsset[asset] || 0) + commission;
+      }
 
-      if (trade.isBuyer) buys++;
-      else sells++;
-
-      totalCommission += commission;
+      if (trade.isBuyer === true) buys++;
+      else if (trade.isBuyer === false) sells++;
     });
 
     totalTrades += trades.length;
     totalVolume += symbolVolume;
 
+    const assets = Object.keys(symbolCommissionByAsset);
     symbolStats[symbol] = {
       trades: trades.length,
       volume: symbolVolume.toFixed(2),
       buys,
       sells,
-      commission: symbolCommission.toFixed(6)
+      invalidTrades: symbolInvalid,
+      commissionByAsset: Object.fromEntries(
+        assets.map(asset => [asset, symbolCommissionByAsset[asset].toFixed(8)])
+      )
     };
   });
 
-  const avgTradeSize = totalTrades > 0 ? (totalVolume / totalTrades) : 0;
+  const assets = Object.keys(commissionByAsset);
+  const totalCommission = assets.length <= 1
+    ? (assets.length === 1 ? commissionByAsset[assets[0]] : 0).toFixed(6)
+    : null;
 
   return {
     totalSymbols: symbols.length,
     totalTrades,
     totalVolume: totalVolume.toFixed(2),
-    avgTradeSize: avgTradeSize.toFixed(2),
-    totalCommission: totalCommission.toFixed(6),
+    avgTradeSize: totalTrades > 0 ? (totalVolume / totalTrades).toFixed(2) : '0.00',
+    totalCommission,
+    commissionByAsset: Object.fromEntries(
+      assets.map(asset => [asset, commissionByAsset[asset].toFixed(8)])
+    ),
+    commissionComparable: assets.length <= 1,
     symbols: symbolStats,
-    fetchErrors: (allTrades && allTrades.errors) ? allTrades.errors : []
+    invalidTrades,
+    fetchErrors: (allTrades && allTrades.errors) ? allTrades.errors : [],
+    requestedSymbols: (allTrades && allTrades.requestedSymbols) || symbols,
+    successfulSymbols: (allTrades && allTrades.successfulSymbols) || symbols,
+    complete: (allTrades && typeof allTrades.complete === 'boolean')
+      ? allTrades.complete && invalidTrades === 0
+      : invalidTrades === 0
   };
 }
 
