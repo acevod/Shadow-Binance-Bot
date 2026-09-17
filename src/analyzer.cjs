@@ -3,12 +3,28 @@
  * Analyzes trading history and generates statistics
  */
 
+// Shared behavioral thresholds (kept in sync with coach.cjs)
+const THRESHOLDS = {
+  MIN_WIN_RATE: 40,
+  LOW_WIN_RATE: 30,
+  MIN_RISK_REWARD: 3,
+  MAX_LOSS_STREAK: 5,
+  MAX_TRADES_PER_DAY: 3,
+  MIN_GOOD_HOUR_WIN_RATE: 60,
+  MAX_BAD_HOUR_WIN_RATE: 30,
+  MIN_BAD_HOUR_TRADES: 3
+};
+
 /**
  * Analyze futures income history
  * @param {array} incomeHistory - Array of income events from Binance
  * @returns {object} - Analysis results
  */
 function analyzeFuturesIncome(incomeHistory) {
+  if (!Array.isArray(incomeHistory)) {
+    incomeHistory = [];
+  }
+
   // Filter only realized PnL
   const pnlTrades = incomeHistory.filter(i => i.incomeType === 'REALIZED_PNL');
   const commissions = incomeHistory.filter(i => i.incomeType === 'COMMISSION');
@@ -30,7 +46,7 @@ function analyzeFuturesIncome(incomeHistory) {
   const totalTrades = winCount + lossCount;
   const winRate = totalTrades > 0 ? (winCount / totalTrades) * 100 : 0;
 
-  // Average win/loss
+  // Average win/loss (avgLoss is NEGATIVE when there are losses)
   const avgWin = winCount > 0
     ? wins.reduce((sum, t) => sum + parseFloat(t.income), 0) / winCount
     : 0;
@@ -38,7 +54,7 @@ function analyzeFuturesIncome(incomeHistory) {
     ? losses.reduce((sum, t) => sum + parseFloat(t.income), 0) / lossCount
     : 0;
 
-  // Risk:Reward ratio
+  // Risk:Reward ratio (magnitude)
   const riskReward = avgLoss !== 0 ? Math.abs(avgWin / avgLoss) : 0;
 
   // Time analysis (by hour UTC)
@@ -51,7 +67,7 @@ function analyzeFuturesIncome(incomeHistory) {
   const dailyPnL = analyzeDailyPnL(pnlTrades);
 
   // Date range
-  const dates = incomeHistory.map(i => i.time).sort();
+  const dates = incomeHistory.map(i => i.time).filter(t => typeof t === 'number').sort((a, b) => a - b);
   const startDate = dates.length > 0 ? new Date(dates[0]) : null;
   const endDate = dates.length > 0 ? new Date(dates[dates.length - 1]) : null;
 
@@ -60,7 +76,7 @@ function analyzeFuturesIncome(incomeHistory) {
       start: startDate ? startDate.toISOString().split('T')[0] : 'N/A',
       end: endDate ? endDate.toISOString().split('T')[0] : 'N/A',
       days: startDate && endDate
-        ? Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24))
+        ? Math.max(1, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)))
         : 0
     },
     trades: {
@@ -100,24 +116,20 @@ function analyzeByHour(pnlTrades) {
     const amount = parseFloat(trade.income);
 
     if (!hourly[hour]) {
-      hourly[hour] = { wins: 0, losses: 0, pnl: 0, total: 0, winRate: 0, trades: [] };
+      hourly[hour] = { wins: 0, losses: 0, pnl: 0, total: 0, winRate: 0 };
     }
 
     hourly[hour].pnl += amount;
-    hourly[hour].trades.push(amount);
 
     if (amount > 0) hourly[hour].wins++;
-    else hourly[hour].losses++;
+    else if (amount < 0) hourly[hour].losses++;
   });
 
-  // Calculate win rates and finalize
   Object.keys(hourly).forEach(hour => {
     const h = hourly[hour];
     h.total = h.wins + h.losses;
     h.winRate = h.total > 0 ? ((h.wins / h.total) * 100).toFixed(0) : '0';
     h.pnl = h.pnl.toFixed(4);
-    // Remove internal trades array before returning
-    delete h.trades;
   });
 
   return hourly;
@@ -129,7 +141,6 @@ function analyzeByHour(pnlTrades) {
  * @returns {object} - Streak statistics
  */
 function analyzeStreaks(pnlTrades) {
-  // Sort by time
   const sorted = [...pnlTrades].sort((a, b) => a.time - b.time);
 
   let maxWinStreak = 0;
@@ -138,13 +149,12 @@ function analyzeStreaks(pnlTrades) {
   let tempLossStreak = 0;
 
   sorted.forEach(trade => {
-    const isWin = parseFloat(trade.income) > 0;
-
-    if (isWin) {
+    const amount = parseFloat(trade.income);
+    if (amount > 0) {
       tempWinStreak++;
       tempLossStreak = 0;
       maxWinStreak = Math.max(maxWinStreak, tempWinStreak);
-    } else {
+    } else if (amount < 0) {
       tempLossStreak++;
       tempWinStreak = 0;
       maxLossStreak = Math.max(maxLossStreak, tempLossStreak);
@@ -155,7 +165,7 @@ function analyzeStreaks(pnlTrades) {
 }
 
 /**
- * Analyze daily PnL
+ * Analyze daily PnL (UTC ISO dates for locale independence)
  * @param {array} pnlTrades - Array of PnL trades
  * @returns {object} - Daily statistics
  */
@@ -163,7 +173,7 @@ function analyzeDailyPnL(pnlTrades) {
   const daily = {};
 
   pnlTrades.forEach(trade => {
-    const date = new Date(trade.time).toLocaleDateString();
+    const date = new Date(trade.time).toISOString().slice(0, 10); // YYYY-MM-DD UTC
     const amount = parseFloat(trade.income);
 
     if (!daily[date]) {
@@ -174,7 +184,6 @@ function analyzeDailyPnL(pnlTrades) {
     daily[date].trades++;
   });
 
-  // Find best and worst days
   let bestDay = { date: '', pnl: -Infinity };
   let worstDay = { date: '', pnl: Infinity };
 
@@ -183,10 +192,15 @@ function analyzeDailyPnL(pnlTrades) {
     if (data.pnl < worstDay.pnl) worstDay = { date, pnl: data.pnl };
   });
 
+  if (bestDay.date === '') {
+    bestDay = { date: 'N/A', pnl: 0 };
+    worstDay = { date: 'N/A', pnl: 0 };
+  }
+
   return {
     days: daily,
-    bestDay: { date: bestDay.date, pnl: bestDay.pnl.toFixed(4) },
-    worstDay: { date: worstDay.date, pnl: worstDay.pnl.toFixed(4) }
+    bestDay: { date: bestDay.date, pnl: Number(bestDay.pnl).toFixed(4) },
+    worstDay: { date: worstDay.date, pnl: Number(worstDay.pnl).toFixed(4) }
   };
 }
 
@@ -198,43 +212,38 @@ function analyzeDailyPnL(pnlTrades) {
 function analyzeBehavior(analysis) {
   const insights = [];
 
-  // Check win rate
-  if (parseFloat(analysis.trades.winRate) < 30) {
+  if (parseFloat(analysis.trades.winRate) < THRESHOLDS.LOW_WIN_RATE) {
     insights.push({
       type: 'warning',
-      message: `Win rate is only ${analysis.trades.winRate}%. Aim for 40%+ to be profitable.`
+      message: `Win rate is only ${analysis.trades.winRate}%. Aim for ${THRESHOLDS.MIN_WIN_RATE}%+ to be profitable.`
     });
   }
 
-  // Check risk:reward
-  if (parseFloat(analysis.averages.riskReward) < 2) {
+  if (parseFloat(analysis.averages.riskReward) < THRESHOLDS.MIN_RISK_REWARD) {
     insights.push({
       type: 'warning',
-      message: `Risk:Reward is only 1:${analysis.averages.riskReward}. Use at least 1:3 to cover losses.`
+      message: `Risk:Reward is only 1:${analysis.averages.riskReward}. Use at least 1:${THRESHOLDS.MIN_RISK_REWARD} to cover losses.`
     });
   }
 
-  // Check loss streak
-  if (analysis.streaks.maxLossStreak > 10) {
+  if (analysis.streaks.maxLossStreak > THRESHOLDS.MAX_LOSS_STREAK) {
     insights.push({
       type: 'danger',
-      message: `Max loss streak of ${analysis.streaks.maxLossStreak} detected! This indicates revenge trading or tilting.`
+      message: `Max loss streak of ${analysis.streaks.maxLossStreak} detected! This may indicate revenge trading or tilting.`
     });
   }
 
-  // Check overtrading
   const tradesPerDay = analysis.trades.total / (analysis.period.days || 1);
-  if (tradesPerDay > 3) {
+  if (tradesPerDay > THRESHOLDS.MAX_TRADES_PER_DAY) {
     insights.push({
       type: 'warning',
       message: `You're trading ${tradesPerDay.toFixed(1)} times per day on average. Consider trading less and waiting for better setups.`
     });
   }
 
-  // Check worst trading hours
-  const hourly = analysis.hourly;
+  const hourly = analysis.hourly || {};
   const badHours = Object.entries(hourly)
-    .filter(([h, data]) => data.winRate < 30 && data.total > 3)
+    .filter(([, data]) => parseInt(data.winRate, 10) < THRESHOLDS.MAX_BAD_HOUR_WIN_RATE && data.total > THRESHOLDS.MIN_BAD_HOUR_TRADES)
     .map(([h]) => `${h}:00 UTC`);
 
   if (badHours.length > 0) {
@@ -244,9 +253,8 @@ function analyzeBehavior(analysis) {
     });
   }
 
-  // Check best trading hours
   const goodHours = Object.entries(hourly)
-    .filter(([h, data]) => data.winRate >= 60)
+    .filter(([, data]) => parseInt(data.winRate, 10) >= THRESHOLDS.MIN_GOOD_HOUR_WIN_RATE)
     .map(([h, data]) => `${h}:00 UTC (${data.winRate}% win rate)`);
 
   if (goodHours.length > 0) {
@@ -261,12 +269,11 @@ function analyzeBehavior(analysis) {
 
 /**
  * Analyze Spot trades from multiple symbols
- * @param {object} allTrades - Object with trades grouped by symbol
+ * @param {object} allTrades - Object with trades grouped by symbol, or { trades, errors }
  * @returns {object} - Spot analysis results
  */
 function analyzeSpotTrades(allTrades) {
-  // Handle the { trades, errors } shape from getAllSpotTrades
-  const tradesBySymbol = (allTrades && allTrades.trades) ? allTrades.trades : allTrades;
+  const tradesBySymbol = (allTrades && allTrades.trades) ? allTrades.trades : (allTrades || {});
 
   let totalTrades = 0;
   let totalVolume = 0;
@@ -284,9 +291,9 @@ function analyzeSpotTrades(allTrades) {
     let sells = 0;
 
     trades.forEach(trade => {
-      const qty = parseFloat(trade.qty);
-      const price = parseFloat(trade.price);
-      const commission = parseFloat(trade.commission);
+      const qty = parseFloat(trade.qty) || 0;
+      const price = parseFloat(trade.price) || 0;
+      const commission = parseFloat(trade.commission) || 0;
 
       symbolVolume += qty * price;
       symbolCommission += commission;
@@ -309,7 +316,6 @@ function analyzeSpotTrades(allTrades) {
     };
   });
 
-  // Calculate average trade size
   const avgTradeSize = totalTrades > 0 ? (totalVolume / totalTrades) : 0;
 
   return {
@@ -318,12 +324,14 @@ function analyzeSpotTrades(allTrades) {
     totalVolume: totalVolume.toFixed(2),
     avgTradeSize: avgTradeSize.toFixed(2),
     totalCommission: totalCommission.toFixed(6),
-    symbols: symbolStats
+    symbols: symbolStats,
+    fetchErrors: (allTrades && allTrades.errors) ? allTrades.errors : []
   };
 }
 
 module.exports = {
   analyzeFuturesIncome,
   analyzeBehavior,
-  analyzeSpotTrades
+  analyzeSpotTrades,
+  THRESHOLDS
 };
