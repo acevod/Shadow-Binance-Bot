@@ -2,7 +2,7 @@
 ---
 name: shadow-binance-bot
 description: AI-powered read-only trading analysis coach that simulates alternative strategies against your Binance trade history.
-version: 1.3.3
+version: 1.4.1
 author: acevod
 homepage: https://github.com/acevod/Shadow-Binance-Bot
 license: MIT
@@ -14,7 +14,6 @@ metadata:
       env:
         - BINANCE_API_KEY
         - BINANCE_API_SECRET
-        - SPOT_SYMBOLS
       bins:
         - node >=18.0.0
     security:
@@ -30,7 +29,7 @@ registry:
   env:
     - BINANCE_API_KEY (required) — Binance read-only API key
     - BINANCE_API_SECRET (required) — Binance read-only API secret
-    - SPOT_SYMBOLS (optional) — comma-separated list of spot symbols to analyze (default: BTCUSDT,ETHUSDT,BNBUSDT)
+    - SPOT_SYMBOLS (optional) — comma-separated list of spot symbols to analyze (default: BTCUSDT,ETHUSDT,BNBUSDT,SOLUSDT,SHIBUSDT)
   capabilities:
     - read-only
     - no-trading
@@ -39,7 +38,6 @@ requires:
   env:
     - BINANCE_API_KEY
     - BINANCE_API_SECRET
-    - SPOT_SYMBOLS
   binaries:
     - node >=18.0.0
 files:
