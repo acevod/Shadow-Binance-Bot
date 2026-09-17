@@ -3,9 +3,10 @@
  * Generates personalized coaching feedback based on analysis
  */
 
-// Behavioral thresholds
+// Keep in sync with analyzer.cjs THRESHOLDS
 const THRESHOLDS = {
   MIN_WIN_RATE: 40,
+  LOW_WIN_RATE: 30,
   MIN_RISK_REWARD: 3,
   MAX_LOSS_STREAK: 5,
   MAX_TRADES_PER_DAY: 3,
@@ -26,14 +27,14 @@ function generateCoachReport(analysis, shadowComparison) {
     problems: identifyProblems(analysis),
     recommendations: generateRecommendations(analysis, shadowComparison),
     actionPlan: generateActionPlan(analysis),
-    motivation: getMotivation(analysis)
+    motivation: getMotivation(analysis),
+    disclaimer: (shadowComparison && shadowComparison.disclaimer) ||
+      'Shadow results are illustrative heuristics, not guarantees of future performance.'
   };
 }
 
 /**
  * Generate summary of trading performance
- * @param {object} analysis - Trading analysis results
- * @returns {object} - Summary object
  */
 function generateSummary(analysis) {
   const netPnL = parseFloat(analysis.pnl.net);
@@ -58,17 +59,15 @@ function generateSummary(analysis) {
 
 /**
  * Identify key problems in trading behavior
- * @param {object} analysis - Trading analysis results
- * @returns {array} - List of problems
  */
 function identifyProblems(analysis) {
   const problems = [];
   const winRate = parseFloat(analysis.trades.winRate);
   const riskReward = parseFloat(analysis.averages.riskReward);
   const maxLossStreak = analysis.streaks.maxLossStreak;
-  const hourly = analysis.hourly;
+  const hourly = analysis.hourly || {};
 
-  if (winRate < 30) {
+  if (winRate < THRESHOLDS.LOW_WIN_RATE) {
     problems.push({
       severity: 'high',
       title: 'Low Win Rate',
@@ -76,7 +75,7 @@ function identifyProblems(analysis) {
     });
   }
 
-  if (riskReward < 3) {
+  if (riskReward < THRESHOLDS.MIN_RISK_REWARD) {
     problems.push({
       severity: 'high',
       title: 'Poor Risk:Reward',
@@ -88,13 +87,12 @@ function identifyProblems(analysis) {
     problems.push({
       severity: 'high',
       title: 'Loss Streak Problem',
-      description: `You had a streak of ${maxLossStreak} consecutive losses. This indicates emotional trading or revenge trading.`
+      description: `You had a streak of ${maxLossStreak} consecutive losses. This may indicate emotional trading or revenge trading.`
     });
   }
 
-  // Find bad hours
   const badHours = Object.entries(hourly)
-    .filter(([h, data]) => data.winRate < THRESHOLDS.MAX_BAD_HOUR_WIN_RATE && data.total > THRESHOLDS.MIN_BAD_HOUR_TRADES)
+    .filter(([, data]) => parseInt(data.winRate, 10) < THRESHOLDS.MAX_BAD_HOUR_WIN_RATE && data.total > THRESHOLDS.MIN_BAD_HOUR_TRADES)
     .map(([h]) => h);
 
   if (badHours.length > 0) {
@@ -110,26 +108,18 @@ function identifyProblems(analysis) {
 
 /**
  * Generate personalized recommendations
- * @param {object} analysis - Trading analysis results
- * @param {object} shadowComparison - Shadow strategy simulations
- * @returns {array} - List of recommendations
  */
 function generateRecommendations(analysis, shadowComparison) {
   const recommendations = [];
-  const strategies = shadowComparison.strategies;
+  const strategies = (shadowComparison && shadowComparison.strategies) || [];
 
-  // Best improvement strategy
-  //
-  // NOTE: most strategies store their numeric result in `improvement`, but
-  // simulateDCA() uses `improvement` for a human-readable summary string and
-  // puts the actual number in `improvementPnL`. Prefer `improvementPnL` when
-  // present so DCA can be fairly compared against the other strategies
-  // instead of being skipped (parseFloat() on its text `improvement` is NaN).
+  // Prefer improvementPnL when present (DCA), else improvement numeric
   let bestStrategy = null;
   let bestImprovement = -Infinity;
   let bestImprovementValue = null;
 
   strategies.forEach(s => {
+    if (s.error) return;
     const rawValue = s.improvementPnL !== undefined ? s.improvementPnL : s.improvement;
     const numericValue = parseFloat(rawValue);
 
@@ -144,25 +134,23 @@ function generateRecommendations(analysis, shadowComparison) {
     const sign = bestImprovement >= 0 ? '+' : '';
     recommendations.push({
       priority: 1,
-      title: `Try: ${bestStrategy.strategy}`,
+      title: `Consider: ${bestStrategy.strategy}`,
       description: bestStrategy.description,
-      potentialGain: `${sign}${bestImprovementValue} USDT`
+      potentialGain: `${sign}${bestImprovementValue} USDT (illustrative)`
     });
   }
 
-  // Risk:Reward recommendation
   if (parseFloat(analysis.averages.riskReward) < THRESHOLDS.MIN_RISK_REWARD) {
     recommendations.push({
       priority: 2,
       title: 'Fix Your Risk:Reward',
-      description: 'Set your stop loss to 10 points and take profit to 30+ points (1:3 minimum). This is the quickest way to improve.',
+      description: 'Set your stop loss to 10 points and take profit to 30+ points (1:3 minimum). This is often the quickest structural improvement.',
       action: 'Use OCO orders with proper ratios'
     });
   }
 
-  // Time-based recommendation
-  const goodHours = Object.entries(analysis.hourly)
-    .filter(([h, data]) => data.winRate >= THRESHOLDS.MIN_GOOD_HOUR_WIN_RATE)
+  const goodHours = Object.entries(analysis.hourly || {})
+    .filter(([, data]) => parseInt(data.winRate, 10) >= THRESHOLDS.MIN_GOOD_HOUR_WIN_RATE)
     .map(([h]) => h);
 
   if (goodHours.length > 0) {
@@ -174,12 +162,11 @@ function generateRecommendations(analysis, shadowComparison) {
     });
   }
 
-  // Streak prevention
   if (analysis.streaks.maxLossStreak > THRESHOLDS.MAX_LOSS_STREAK) {
     recommendations.push({
       priority: 4,
       title: 'Implement 3-Strike Rule',
-      description: 'Stop trading after 3 consecutive losses. Take a break. Come back tomorrow.',
+      description: 'Stop trading after 3 consecutive losses. Take a break. Come back the next session.',
       action: 'Set a reminder or use a trading journal'
     });
   }
@@ -189,8 +176,6 @@ function generateRecommendations(analysis, shadowComparison) {
 
 /**
  * Generate structured action plan
- * @param {object} analysis - Trading analysis results
- * @returns {array} - Phased action plan
  */
 function generateActionPlan(analysis) {
   return [
@@ -215,7 +200,7 @@ function generateActionPlan(analysis) {
       steps: [
         'Build trading journal to track decisions',
         'Study support/resistance and candlestick patterns',
-        'Aim for 40%+ win rate consistently'
+        `Aim for ${THRESHOLDS.MIN_WIN_RATE}%+ win rate consistently`
       ]
     }
   ];
@@ -223,16 +208,14 @@ function generateActionPlan(analysis) {
 
 /**
  * Get motivational message based on performance
- * @param {object} analysis - Trading analysis results
- * @returns {string} - Motivational message
  */
 function getMotivation(analysis) {
   const netPnL = parseFloat(analysis.pnl.net);
 
   if (netPnL > 0) {
-    return "You're doing great! Keep improving your discipline and you'll be profitable in no time.";
+    return "You're doing great! Keep improving your discipline and you'll stay profitable.";
   } else if (netPnL > -5) {
-    return "You've identified your problems - now it's just about discipline. You can do this!";
+    return "You've identified your problems - now it's about discipline. You can do this!";
   } else {
     return "Everyone loses at first. The key is learning from your mistakes. You've got this!";
   }
@@ -240,8 +223,6 @@ function getMotivation(analysis) {
 
 /**
  * Format full coach report for console display
- * @param {object} report - Coach report object
- * @returns {string} - Formatted report string
  */
 function formatReport(report) {
   let output = '';
@@ -250,7 +231,6 @@ function formatReport(report) {
   output += '    SHADOW TRADING COACH REPORT             \n';
   output += '============================================\n\n';
 
-  // Summary
   output += 'SUMMARY\n';
   output += '--------------------------------------------\n';
   output += `Period: ${report.summary.period}\n`;
@@ -259,7 +239,6 @@ function formatReport(report) {
   output += `Net PnL: ${report.summary.netPnL}\n`;
   output += `Verdict: ${report.summary.verdict}\n\n`;
 
-  // Problems
   if (report.problems.length > 0) {
     output += 'PROBLEMS IDENTIFIED\n';
     output += '--------------------------------------------\n';
@@ -268,7 +247,6 @@ function formatReport(report) {
     });
   }
 
-  // Recommendations
   if (report.recommendations.length > 0) {
     output += 'RECOMMENDATIONS\n';
     output += '--------------------------------------------\n';
@@ -281,7 +259,6 @@ function formatReport(report) {
     });
   }
 
-  // Action Plan
   output += 'ACTION PLAN\n';
   output += '--------------------------------------------\n';
   report.actionPlan.forEach(phase => {
@@ -292,7 +269,12 @@ function formatReport(report) {
   });
   output += '\n';
 
-  // Motivation
+  if (report.disclaimer) {
+    output += 'NOTE\n';
+    output += '--------------------------------------------\n';
+    output += `${report.disclaimer}\n\n`;
+  }
+
   output += '============================================\n';
   output += `${report.motivation}\n`;
   output += '============================================\n';
@@ -302,22 +284,16 @@ function formatReport(report) {
 
 /**
  * Generate coaching report for Spot trading
- * @param {object} spotAnalysis - Spot analysis results
- * @returns {object} - Spot coaching report
  */
 function generateSpotCoachReport(spotAnalysis) {
   return {
     summary: generateSpotSummary(spotAnalysis),
     insights: generateSpotInsights(spotAnalysis),
-    recommendations: generateSpotRecommendations(spotAnalysis)
+    recommendations: generateSpotRecommendations(spotAnalysis),
+    fetchErrors: spotAnalysis.fetchErrors || []
   };
 }
 
-/**
- * Generate Spot summary
- * @param {object} spotAnalysis - Spot analysis results
- * @returns {object} - Spot summary
- */
 function generateSpotSummary(spotAnalysis) {
   return {
     totalTrades: spotAnalysis.totalTrades,
@@ -328,11 +304,6 @@ function generateSpotSummary(spotAnalysis) {
   };
 }
 
-/**
- * Generate Spot insights
- * @param {object} spotAnalysis - Spot analysis results
- * @returns {array} - List of insights
- */
 function generateSpotInsights(spotAnalysis) {
   const insights = [];
 
@@ -344,7 +315,6 @@ function generateSpotInsights(spotAnalysis) {
     return insights;
   }
 
-  // Check diversification
   if (spotAnalysis.totalSymbols < 3) {
     insights.push({
       type: 'tip',
@@ -352,7 +322,6 @@ function generateSpotInsights(spotAnalysis) {
     });
   }
 
-  // Check average trade size
   const avgSize = parseFloat(spotAnalysis.avgTradeSize);
   if (avgSize > 100) {
     insights.push({
@@ -366,7 +335,6 @@ function generateSpotInsights(spotAnalysis) {
     });
   }
 
-  // Check for over-trading
   if (spotAnalysis.totalTrades > 100) {
     insights.push({
       type: 'warning',
@@ -374,8 +342,7 @@ function generateSpotInsights(spotAnalysis) {
     });
   }
 
-  // Find most traded symbol
-  const symbols = spotAnalysis.symbols;
+  const symbols = spotAnalysis.symbols || {};
   let mostTraded = { symbol: '', trades: 0 };
   Object.entries(symbols).forEach(([symbol, stats]) => {
     if (stats.trades > mostTraded.trades) {
@@ -390,7 +357,6 @@ function generateSpotInsights(spotAnalysis) {
     });
   }
 
-  // Check buy/sell ratio per symbol
   Object.entries(symbols).forEach(([symbol, stats]) => {
     if (stats.buys > 0 && stats.sells > 0) {
       const buyRatio = (stats.buys / (stats.buys + stats.sells) * 100).toFixed(0);
@@ -411,11 +377,6 @@ function generateSpotInsights(spotAnalysis) {
   return insights;
 }
 
-/**
- * Generate Spot recommendations
- * @param {object} spotAnalysis - Spot analysis results
- * @returns {array} - List of recommendations
- */
 function generateSpotRecommendations(spotAnalysis) {
   const recommendations = [];
 
@@ -428,7 +389,6 @@ function generateSpotRecommendations(spotAnalysis) {
     return recommendations;
   }
 
-  // Diversification
   if (spotAnalysis.totalSymbols < 3) {
     recommendations.push({
       priority: 2,
@@ -437,7 +397,6 @@ function generateSpotRecommendations(spotAnalysis) {
     });
   }
 
-  // Position sizing
   const avgSize = parseFloat(spotAnalysis.avgTradeSize);
   if (avgSize > 100) {
     recommendations.push({
@@ -447,7 +406,6 @@ function generateSpotRecommendations(spotAnalysis) {
     });
   }
 
-  // Fees
   const commission = parseFloat(spotAnalysis.totalCommission);
   if (commission > 10) {
     recommendations.push({
@@ -462,8 +420,6 @@ function generateSpotRecommendations(spotAnalysis) {
 
 /**
  * Format Spot report for console display
- * @param {object} report - Spot coaching report
- * @returns {string} - Formatted report string
  */
 function formatSpotReport(report) {
   let output = '';
@@ -472,7 +428,6 @@ function formatSpotReport(report) {
   output += '       SPOT COACHING REPORT                \n';
   output += '============================================\n\n';
 
-  // Summary
   output += 'SPOT SUMMARY\n';
   output += '--------------------------------------------\n';
   output += `Total Trades: ${report.summary.totalTrades}\n`;
@@ -481,7 +436,15 @@ function formatSpotReport(report) {
   output += `Avg Trade: $${report.summary.avgTradeSize} USDT\n`;
   output += `Fees Paid: ${report.summary.commission}\n\n`;
 
-  // Insights
+  if (report.fetchErrors && report.fetchErrors.length > 0) {
+    output += 'FETCH WARNINGS\n';
+    output += '--------------------------------------------\n';
+    report.fetchErrors.forEach(e => {
+      output += `  ! ${e.symbol}: ${e.error}\n`;
+    });
+    output += '\n';
+  }
+
   if (report.insights.length > 0) {
     output += 'INSIGHTS\n';
     output += '--------------------------------------------\n';
@@ -491,7 +454,6 @@ function formatSpotReport(report) {
     });
   }
 
-  // Recommendations
   if (report.recommendations.length > 0) {
     output += 'RECOMMENDATIONS\n';
     output += '--------------------------------------------\n';
@@ -509,5 +471,6 @@ module.exports = {
   generateCoachReport,
   formatReport,
   generateSpotCoachReport,
-  formatSpotReport
+  formatSpotReport,
+  THRESHOLDS
 };
