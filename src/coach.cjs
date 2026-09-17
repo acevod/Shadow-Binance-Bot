@@ -119,22 +119,34 @@ function generateRecommendations(analysis, shadowComparison) {
   const strategies = shadowComparison.strategies;
 
   // Best improvement strategy
+  //
+  // NOTE: most strategies store their numeric result in `improvement`, but
+  // simulateDCA() uses `improvement` for a human-readable summary string and
+  // puts the actual number in `improvementPnL`. Prefer `improvementPnL` when
+  // present so DCA can be fairly compared against the other strategies
+  // instead of being skipped (parseFloat() on its text `improvement` is NaN).
   let bestStrategy = null;
   let bestImprovement = -Infinity;
+  let bestImprovementValue = null;
 
   strategies.forEach(s => {
-    if (s.improvement && parseFloat(s.improvement) > bestImprovement) {
-      bestImprovement = parseFloat(s.improvement);
+    const rawValue = s.improvementPnL !== undefined ? s.improvementPnL : s.improvement;
+    const numericValue = parseFloat(rawValue);
+
+    if (!isNaN(numericValue) && numericValue > bestImprovement) {
+      bestImprovement = numericValue;
       bestStrategy = s;
+      bestImprovementValue = rawValue;
     }
   });
 
   if (bestStrategy) {
+    const sign = bestImprovement >= 0 ? '+' : '';
     recommendations.push({
       priority: 1,
       title: `Try: ${bestStrategy.strategy}`,
       description: bestStrategy.description,
-      potentialGain: `+${bestStrategy.improvement} USDT`
+      potentialGain: `${sign}${bestImprovementValue} USDT`
     });
   }
 
