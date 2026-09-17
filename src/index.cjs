@@ -231,13 +231,17 @@ async function main() {
     const allSpotTrades = await binance.getAllSpotTrades(BINANCE_API_KEY, BINANCE_API_SECRET, spotSymbols);
 
     if (allSpotTrades.errors && allSpotTrades.errors.length > 0) {
-      console.log('  Some symbols failed:');
+      console.log(`  WARNING: incomplete Spot coverage (${allSpotTrades.successfulSymbols?.length || 0}/${allSpotTrades.requestedSymbols?.length || spotSymbols.length} symbols succeeded)`);
+      console.log('  Some symbols failed:')
       allSpotTrades.errors.forEach(e => console.log(`    - ${e.symbol}: ${e.error}`));
     }
 
     const spotAnalysis = analyzer.analyzeSpotTrades(allSpotTrades);
 
-    console.log(`   Found ${spotAnalysis.totalTrades} trades across ${spotAnalysis.totalSymbols} symbols`);
+    console.log(`   Found ${spotAnalysis.totalTrades} valid fills across ${spotAnalysis.totalSymbols} symbols`);
+    if (!spotAnalysis.complete) {
+      console.log('   WARNING: Spot analysis is incomplete or contains invalid records. Treat aggregate metrics as partial.');
+    }
     console.log('');
 
     console.log('Running Spot shadow simulations...');
@@ -268,19 +272,19 @@ async function main() {
 
     // ===== COMBINED TOTAL =====
     const futuresNetPnL = parseFloat(futuresAnalysis.pnl.net);
-    const spotVolume = parseFloat(spotAnalysis.totalVolume);
+    const spotVolume = parseFloat(spotAnalysis.totalVolume) || 0;
 
     console.log('');
     console.log('============================================');
     console.log('        COMBINED TOTAL                      ');
     console.log('============================================');
     console.log(`Futures Net PnL: ${futuresNetPnL.toFixed(4)} USDT`);
-    console.log(`Spot Volume: ${spotVolume.toFixed(2)} USDT`);
+    console.log(`Spot Notional: ${spotVolume.toFixed(2)} (quote asset depends on symbol)`);
     console.log('');
 
     if (futuresNetPnL < 0) {
       console.log('Focus on fixing your Futures trading first!');
-      console.log('   - Use better Risk:Reward (1:3 minimum)');
+      console.log('   - Review risk/reward and validate expectancy');
       console.log('   - Trade during your best hours');
       console.log('   - Implement 3-loss rule');
     }
