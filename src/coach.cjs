@@ -429,7 +429,14 @@ function formatSpotReport(report) {
   output += `Symbols: ${report.summary.totalSymbols}\n`;
   output += `Volume: $${report.summary.totalVolume} USDT\n`;
   output += `Avg Trade: $${report.summary.avgTradeSize} USDT\n`;
-  output += `Fees Paid: ${report.summary.commission}\n\n`;
+  if (report.summary.commissionComparable) {
+    output += `Fees Paid: ${report.summary.commission}\n\n`;
+  } else {
+    const breakdown = Object.entries(report.summary.commissionByAsset || {})
+      .map(([asset, amount]) => `${amount} ${asset}`)
+      .join(', ');
+    output += `Fees Paid: ${breakdown || 'N/A'} (paid in multiple assets, not summed)\n\n`;
+  }
 
   if (report.fetchErrors && report.fetchErrors.length > 0) {
     output += 'FETCH WARNINGS\n';
