@@ -85,7 +85,7 @@ assert(redResult.originalTrades === 10, `Original trades should be 10, got ${red
 assert(redResult.simulatedTrades === 5, `Simulated trades should be 5, got ${redResult.simulatedTrades}`);
 assert(redResult.reduction === '50%', `Reduction should be 50%, got ${redResult.reduction}`);
 assert(redResult.originalPnL === '300.00', `Original PnL should be 300.00, got ${redResult.originalPnL}`);
-assert(redResult.commissionSavings !== undefined, 'Should have commission savings');
+assert(redResult.commissionSavings === '2.5000', `Commission savings should be positive 2.5000, got ${redResult.commissionSavings}`);
 assert(redResult.improvement !== undefined, 'Should have improvement value');
 assert(redResult.description.length > 0, 'Should have a description');
 
