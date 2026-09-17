@@ -126,8 +126,29 @@ assert(result.daily.bestDay.date === result.daily.worstDay.date || true, 'daily 
 assert(/^\d{4}-\d{2}-\d{2}$/.test(result.daily.bestDay.date) || result.daily.bestDay.date === 'N/A',
   `bestDay date should be ISO or N/A, got ${result.daily.bestDay.date}`);
 
+// Data-quality and commission-asset regression tests
+const mixedFees = analyzeSpotTrades({
+  BTCUSDT: [
+    { id: 1, qty: '1', price: '100', commission: '0.01', commissionAsset: 'BNB', isBuyer: true },
+    { id: 2, qty: '1', price: '100', commission: '2', commissionAsset: 'USDT', isBuyer: false },
+    { id: 3, qty: 'bad', price: '100', commission: '1', commissionAsset: 'USDT', isBuyer: true }
+  ]
+});
+assert(mixedFees.commissionComparable === false, 'Mixed commission assets must not be treated as one comparable currency');
+assert(mixedFees.totalCommission === null, 'Mixed commission assets should not expose a misleading single total');
+assert(mixedFees.commissionByAsset.BNB === '0.01000000', 'BNB commission should be tracked separately');
+assert(mixedFees.commissionByAsset.USDT === '2.00000000', 'USDT commission should be tracked separately');
+assert(mixedFees.invalidTrades === 1, 'Malformed Spot trade should be counted as invalid');
+
+const invalidIncome = analyzeFuturesIncome([
+  { incomeType: 'REALIZED_PNL', income: '100', time: 1710000000000 },
+  { incomeType: 'REALIZED_PNL', income: 'not-a-number', time: 1710000001000 }
+]);
+assert(invalidIncome.dataQuality.invalidRecords === 1, 'Malformed Futures income should be counted as invalid');
+assert(invalidIncome.dataQuality.complete === false, 'Analysis with invalid input should be marked incomplete');
+assert(invalidIncome.trades.unit === 'realized_pnl_event', 'Futures trade count must disclose its event-based unit');
+
 console.log(`\n${'='.repeat(40)}`);
 console.log(`Results: ${testsPassed} passed, ${testsFailed} failed`);
 console.log(`${'='.repeat(40)}`);
-
 process.exit(testsFailed > 0 ? 1 : 0);
