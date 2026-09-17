@@ -28,6 +28,8 @@ function generateCoachReport(analysis, shadowComparison) {
     recommendations: generateRecommendations(analysis, shadowComparison),
     actionPlan: generateActionPlan(analysis),
     motivation: getMotivation(analysis),
+    fetchErrors: analysis.fetchErrors || [],
+    dataQuality: analysis.dataQuality || null,
     disclaimer: (shadowComparison && shadowComparison.disclaimer) ||
       'Shadow results are illustrative heuristics, not guarantees of future performance.'
   };
@@ -43,9 +45,9 @@ function generateSummary(analysis) {
   const period = analysis.period;
 
   let verdict;
-  if (netPnL > 0) verdict = 'PROFITABLE';
+  if (netPnL > 0) verdict = 'POSITIVE NET PnL';
   else if (netPnL > -5) verdict = 'NEAR BREAK-EVEN';
-  else verdict = 'NEEDS IMPROVEMENT';
+  else verdict = 'NEGATIVE NET PnL';
 
   return {
     period: `${period.start} to ${period.end} (${period.days} days)`,
@@ -71,7 +73,7 @@ function identifyProblems(analysis) {
     problems.push({
       severity: 'high',
       title: 'Low Win Rate',
-      description: `Your win rate is only ${winRate}%. At this rate, you need excellent risk:reward to be profitable.`
+      description: `Your win rate is only ${winRate}%. Win rate is only one part of expectancy; average win/loss, fees, funding, and trade selection also matter.`
     });
   }
 
@@ -113,67 +115,57 @@ function generateRecommendations(analysis, shadowComparison) {
   const recommendations = [];
   const strategies = (shadowComparison && shadowComparison.strategies) || [];
 
-  // Prefer improvementPnL when present (DCA), else improvement numeric
-  let bestStrategy = null;
-  let bestImprovement = -Infinity;
-  let bestImprovementValue = null;
-
-  strategies.forEach(s => {
-    if (s.error) return;
-    const rawValue = s.improvementPnL !== undefined ? s.improvementPnL : s.improvement;
-    const numericValue = parseFloat(rawValue);
-
-    if (!isNaN(numericValue) && numericValue > bestImprovement) {
-      bestImprovement = numericValue;
-      bestStrategy = s;
-      bestImprovementValue = rawValue;
-    }
-  });
-
-  if (bestStrategy) {
-    const sign = bestImprovement >= 0 ? '+' : '';
+  // Shadow strategies are heuristic/hindsight scenarios, not validated backtests.
+  // Do not rank them by the largest illustrative number.
+  const scenarios = strategies.filter(s => !s.error).slice(0, 4);
+  scenarios.forEach((scenario, index) => {
+    const improvement = scenario.improvementPnL !== undefined
+      ? scenario.improvementPnL
+      : scenario.improvement;
     recommendations.push({
-      priority: 1,
-      title: `Consider: ${bestStrategy.strategy}`,
-      description: bestStrategy.description,
-      potentialGain: `${sign}${bestImprovementValue} USDT (illustrative)`
+      priority: index + 1,
+      title: `Scenario: ${scenario.strategy}`,
+      description: scenario.description,
+      potentialGain: typeof improvement === 'string' && /^[-+]?\d/.test(improvement)
+        ? `${improvement} USDT (illustrative; not a forecast)`
+        : undefined,
+      evidenceType: scenario.type || 'heuristic_scenario'
     });
-  }
+  });
 
   if (parseFloat(analysis.averages.riskReward) < THRESHOLDS.MIN_RISK_REWARD) {
     recommendations.push({
-      priority: 2,
-      title: 'Fix Your Risk:Reward',
-      description: 'Set your stop loss to 10 points and take profit to 30+ points (1:3 minimum). This is often the quickest structural improvement.',
-      action: 'Use OCO orders with proper ratios'
+      priority: recommendations.length + 1,
+      title: 'Review Risk:Reward',
+      description: 'Your observed average win/loss ratio is below the configured heuristic threshold. Evaluate position sizing, stop placement, target placement, fees, and actual expectancy together.',
+      action: 'Measure expectancy before changing trade rules'
     });
   }
 
   const goodHours = Object.entries(analysis.hourly || {})
-    .filter(([, data]) => parseInt(data.winRate, 10) >= THRESHOLDS.MIN_GOOD_HOUR_WIN_RATE)
+    .filter(([, data]) => parseInt(data.winRate, 10) >= THRESHOLDS.MIN_GOOD_HOUR_WIN_RATE && data.total >= THRESHOLDS.MIN_BAD_HOUR_TRADES)
     .map(([h]) => h);
 
   if (goodHours.length > 0) {
     recommendations.push({
-      priority: 3,
-      title: 'Trade During Your Best Hours',
-      description: `Your win rate is highest at: ${goodHours.map(h => `${h}:00 UTC`).join(', ')}`,
-      action: 'Set trading hours to these times only'
+      priority: recommendations.length + 1,
+      title: 'Review Strong Hours',
+      description: `Your historical win rate is higher at: ${goodHours.map(h => `${h}:00 UTC`).join(', ')}. This is historical correlation, not proof of a future edge.`,
+      action: 'Validate with a separate out-of-sample period'
     });
   }
 
   if (analysis.streaks.maxLossStreak > THRESHOLDS.MAX_LOSS_STREAK) {
     recommendations.push({
-      priority: 4,
-      title: 'Implement 3-Strike Rule',
-      description: 'Stop trading after 3 consecutive losses. Take a break. Come back the next session.',
-      action: 'Set a reminder or use a trading journal'
+      priority: recommendations.length + 1,
+      title: 'Review Loss Streaks',
+      description: `A maximum streak of ${analysis.streaks.maxLossStreak} consecutive negative realized-PnL events was observed. The data alone cannot establish the cause.`,
+      action: 'Review journal/context around the streak'
     });
   }
 
   return recommendations;
 }
-
 /**
  * Generate structured action plan
  */
@@ -183,7 +175,7 @@ function generateActionPlan(analysis) {
       phase: 'IMMEDIATE (This Week)',
       steps: [
         'Set stop loss BEFORE entering any trade',
-        'Use 1:3 minimum risk:reward',
+        'Use a documented risk/reward rule and validate its expectancy',
         'Check UTC time before trading - only trade at good hours'
       ]
     },
@@ -192,7 +184,7 @@ function generateActionPlan(analysis) {
       steps: [
         'Implement 3-loss rule - stop after 3 losses per day',
         'Reduce trading frequency by 50%',
-        'Practice on demo account until 50% win rate'
+        'Practice on demo account while tracking expectancy and drawdown'
       ]
     },
     {
@@ -200,7 +192,7 @@ function generateActionPlan(analysis) {
       steps: [
         'Build trading journal to track decisions',
         'Study support/resistance and candlestick patterns',
-        `Aim for ${THRESHOLDS.MIN_WIN_RATE}%+ win rate consistently`
+        'Aim for a positive, repeatable expectancy rather than a fixed win-rate target'
       ]
     }
   ];
@@ -213,7 +205,7 @@ function getMotivation(analysis) {
   const netPnL = parseFloat(analysis.pnl.net);
 
   if (netPnL > 0) {
-    return "You're doing great! Keep improving your discipline and you'll stay profitable.";
+    return "Positive net PnL is one signal; keep validating the underlying process, costs, and consistency.";
   } else if (netPnL > -5) {
     return "You've identified your problems - now it's about discipline. You can do this!";
   } else {
@@ -300,7 +292,10 @@ function generateSpotSummary(spotAnalysis) {
     totalSymbols: spotAnalysis.totalSymbols,
     totalVolume: spotAnalysis.totalVolume,
     avgTradeSize: spotAnalysis.avgTradeSize,
-    commission: spotAnalysis.totalCommission
+    commission: spotAnalysis.totalCommission,
+    commissionByAsset: spotAnalysis.commissionByAsset || {},
+    commissionComparable: spotAnalysis.commissionComparable !== false,
+    complete: spotAnalysis.complete !== false
   };
 }
 
