@@ -12,7 +12,8 @@
 function simulateImprovedRiskReward(analysis, targetRR = 4) {
   const realTrades = analysis.trades.total;
   if (realTrades <= 0) {
-    return { strategy: `Improved Risk:Reward (1:${targetRR})`, error: 'No trades to simulate' };
+    return { type: 'heuristic_scenario',
+    strategy: `Improved Risk:Reward (1:${targetRR})`, error: 'No trades to simulate' };
   }
 
   const realWinRate = parseFloat(analysis.trades.winRate) / 100;
@@ -27,6 +28,7 @@ function simulateImprovedRiskReward(analysis, targetRR = 4) {
   const improvement = simulatedPnL - parseFloat(analysis.pnl.realized);
 
   return {
+    type: 'heuristic_scenario',
     strategy: `Improved Risk:Reward (1:${targetRR})`,
     trades: realTrades,
     wins,
@@ -73,6 +75,7 @@ function simulateSelectiveTrading(analysis, minWinRate = 50) {
   const improvement = goodHourPnL - realPnL;
 
   return {
+    type: 'hindsight_scenario',
     strategy: `Selective Trading (${minWinRate}%+ win rate hours)`,
     goodHours: goodHours.map(h => `${h.hour}:00 UTC (${h.winRate}% WR)`),
     simulatedTrades: goodHourTrades,
@@ -93,7 +96,8 @@ function simulateReducedTrading(analysis, reductionPercent = 50) {
   const realTrades = analysis.trades.total;
   if (realTrades <= 0) {
     return {
-      strategy: `Reduced Trading (-${reductionPercent}% trades)`,
+      type: 'heuristic_scenario',
+    strategy: `Reduced Trading (-${reductionPercent}% trades)`,
       error: 'No trades to simulate'
     };
   }
@@ -109,11 +113,12 @@ function simulateReducedTrading(analysis, reductionPercent = 50) {
 
   const realCommission = parseFloat(analysis.trades.commissions) || 0;
   const reducedCommission = realCommission * (1 - reductionPercent / 100);
-  const commissionSavings = realCommission - reducedCommission;
+  const commissionSavings = Math.abs(realCommission) - Math.abs(reducedCommission);
 
   const totalImprovement = (simulatedPnL - parseFloat(analysis.pnl.realized)) + commissionSavings;
 
   return {
+    type: 'heuristic_scenario',
     strategy: `Reduced Trading (-${reductionPercent}% trades)`,
     originalTrades: realTrades,
     simulatedTrades: reducedTrades,
@@ -134,7 +139,8 @@ function simulateReducedTrading(analysis, reductionPercent = 50) {
 function simulateDCA(analysis) {
   const realTrades = analysis.trades.total;
   if (realTrades <= 0) {
-    return { strategy: 'DCA (Dollar Cost Averaging)', error: 'No trades to simulate' };
+    return { type: 'heuristic_scenario',
+    strategy: 'DCA (Dollar Cost Averaging)', error: 'No trades to simulate' };
   }
 
   const realWinRate = parseFloat(analysis.trades.winRate) / 100;
@@ -153,6 +159,7 @@ function simulateDCA(analysis) {
   const improvement = simulatedPnL - parseFloat(analysis.pnl.realized);
 
   return {
+    type: 'heuristic_scenario',
     strategy: 'DCA (Dollar Cost Averaging)',
     originalWinRate: `${(realWinRate * 100).toFixed(0)}%`,
     simulatedWinRate: `${(dcaWinRate * 100).toFixed(0)}%`,
