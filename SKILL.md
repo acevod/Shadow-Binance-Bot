@@ -48,6 +48,8 @@ files:
   - src/coach.cjs
   - tests/analyzer.test.cjs
   - tests/shadowSim.test.cjs
+  - tests/binance.test.cjs
+  - tests/coach.test.cjs
   - config.env.example
   - package.json
   - CHANGELOG.md
