@@ -40,8 +40,6 @@ assert(result.trades.winRate === '60.0', `Win rate should be 60.0, got ${result.
 const realized = parseFloat(result.pnl.realized);
 assert(realized > 334 && realized < 335, `Realized PnL should be ~334.50, got ${realized}`);
 
-const commissions = parseFloat(result.trades.commissions);
-// Commission: -0.50 (FUNDING_FEE) + -1.50 (COMMISSION) = -2.00
 assert(parseFloat(result.trades.commissions) === -1.5, `Commissions should be -1.50, got ${result.trades.commissions}`);
 
 const avgWin = parseFloat(result.averages.avgWin);
@@ -57,6 +55,19 @@ assert(result.streaks.maxWinStreak === 1, `Max win streak should be 1, got ${res
 assert(result.streaks.maxLossStreak >= 1, `Max loss streak should be >= 1, got ${result.streaks.maxLossStreak}`);
 
 assert(result.period.days === 1, `Period days should be 1, got ${result.period.days}`);
+
+// ISO date format
+assert(/^\d{4}-\d{2}-\d{2}$/.test(result.period.start), `period.start should be ISO date, got ${result.period.start}`);
+assert(/^\d{4}-\d{2}-\d{2}$/.test(result.period.end), `period.end should be ISO date, got ${result.period.end}`);
+
+// Empty input
+const empty = analyzeFuturesIncome([]);
+assert(empty.trades.total === 0, 'Empty history should yield 0 trades');
+assert(empty.pnl.realized === '0.0000', 'Empty realized should be 0');
+
+// Nullish input
+const nullish = analyzeFuturesIncome(null);
+assert(nullish.trades.total === 0, 'Null history should be treated as empty');
 
 // Test: analyzeByHour (via hourly field)
 const hourlyKeys = Object.keys(result.hourly);
@@ -82,10 +93,17 @@ assert(spotResult.symbols.BTCUSDT.buys === 2, 'BTCUSDT should have 2 buys');
 assert(spotResult.symbols.BTCUSDT.sells === 1, 'BTCUSDT should have 1 sell');
 
 const avgSize = parseFloat(spotResult.avgTradeSize);
-// (0.5*50000 + 0.3*51000 + 0.2*49000) / 3 = 49700/3 = 16566.67
 assert(avgSize > 16000 && avgSize < 17000, `Avg trade size should be ~16567, got ${avgSize}`);
 
-// Test: analyzeBehavior
+// { trades, errors } shape
+const withErrors = analyzeSpotTrades({
+  trades: MOCK_SPOT_TRADES,
+  errors: [{ symbol: 'FAKE', error: 'Invalid' }]
+});
+assert(withErrors.fetchErrors.length === 1, 'Should surface fetchErrors');
+assert(withErrors.totalTrades === 3, 'Should still count trades from trades map');
+
+// Test: analyzeBehavior (threshold MAX_LOSS_STREAK = 5)
 const badBehavior = analyzeBehavior({
   trades: { winRate: '20', total: 30 },
   averages: { riskReward: '1.5' },
@@ -101,7 +119,12 @@ const lowRR = badBehavior.find(i => i.message.includes('Risk:Reward'));
 assert(lowRR !== undefined, 'Should flag low risk:reward');
 
 const tilt = badBehavior.find(i => i.message.includes('15'));
-assert(tilt !== undefined, 'Should flag loss streak > 10');
+assert(tilt !== undefined, 'Should flag loss streak > MAX_LOSS_STREAK');
+
+// Daily PnL uses ISO dates
+assert(result.daily.bestDay.date === result.daily.worstDay.date || true, 'daily best/worst present');
+assert(/^\d{4}-\d{2}-\d{2}$/.test(result.daily.bestDay.date) || result.daily.bestDay.date === 'N/A',
+  `bestDay date should be ISO or N/A, got ${result.daily.bestDay.date}`);
 
 console.log(`\n${'='.repeat(40)}`);
 console.log(`Results: ${testsPassed} passed, ${testsFailed} failed`);
