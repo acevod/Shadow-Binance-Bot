@@ -217,6 +217,8 @@ Shadow-Binance-Bot/
   tests/
     analyzer.test.cjs
     shadowSim.test.cjs
+    binance.test.cjs
+    coach.test.cjs
   assets/
     architecture.png
     shadow-simulation.png
