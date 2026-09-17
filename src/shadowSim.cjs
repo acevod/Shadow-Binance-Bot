@@ -14,8 +14,12 @@ function simulateImprovedRiskReward(analysis, targetRR = 4) {
   const realWinRate = parseFloat(analysis.trades.winRate) / 100;
   const avgLoss = parseFloat(analysis.averages.avgLoss);
 
-  // Simulate with better R:R
-  const avgWin = avgLoss * targetRR;
+  // Simulate with better R:R.
+  // NOTE: avgLoss is stored as a NEGATIVE number throughout this codebase
+  // (see analyzer.cjs). Multiplying a negative avgLoss by targetRR would
+  // produce a negative "win" (a loss disguised as a win), so we derive the
+  // simulated win from the magnitude of the loss instead.
+  const avgWin = Math.abs(avgLoss) * targetRR;
 
   const wins = Math.round(realTrades * realWinRate);
   const losses = realTrades - wins;
