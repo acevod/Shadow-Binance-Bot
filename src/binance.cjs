@@ -6,7 +6,7 @@
  * - Query parameter encoding (URLSearchParams)
  * - recvWindow on signed requests
  * - Time-window pagination for Futures income
- * - fromId pagination for Spot trades
+ * - backwards endTime pagination for Spot trades
  * - Symbol validation
  */
 
@@ -117,16 +117,24 @@ function isRetryable(error) {
  * @param {object} headers - Request headers
  * @returns {Promise<object>} - API response
  */
-async function makeRequest(hostname, path, method, headers = {}) {
+async function makeRequest(hostname, pathOrFactory, method, headers = {}) {
   let lastError;
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    // A function factory is required for signed requests so timestamp/signature
+    // can be regenerated after a retry. A string remains supported for callers
+    // that already have an immutable path.
+    const path = typeof pathOrFactory === 'function' ? pathOrFactory() : pathOrFactory;
+
     try {
       const result = await _doRequest(hostname, path, method, headers);
 
       if (isRetryable(result)) {
         if (attempt < MAX_RETRIES) {
-          const backoffMs = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+          const retryAfterMs = Number(result.retryAfterMs);
+          const backoffMs = Number.isFinite(retryAfterMs) && retryAfterMs >= 0
+            ? retryAfterMs
+            : BASE_DELAY_MS * Math.pow(2, attempt - 1);
           console.error(`[Retry ${attempt}/${MAX_RETRIES}] Rate-limited or transient. Waiting ${backoffMs}ms...`);
           await delay(backoffMs);
           continue;
@@ -149,7 +157,6 @@ async function makeRequest(hostname, path, method, headers = {}) {
 
   throw lastError;
 }
-
 /**
  * Internal: perform a single HTTP request
  */
@@ -159,37 +166,47 @@ function _doRequest(hostname, path, method, headers = {}) {
 
     const req = https.request(options, (res) => {
       let data = '';
+      res.setEncoding('utf8');
       res.on('data', (chunk) => data += chunk);
       res.on('end', () => {
+        let parsed;
         try {
-          const parsed = JSON.parse(data);
-          resolve(parsed);
+          parsed = JSON.parse(data);
         } catch (e) {
-          reject(new Error(`Failed to parse response: ${data.slice(0, 200)}`));
+          const error = new Error(`Failed to parse response: ${data.slice(0, 200)}`);
+          error.statusCode = res.statusCode;
+          reject(error);
+          return;
         }
+
+        if (res.statusCode === 429 || res.statusCode === 418) {
+          const retryAfterHeader = res.headers['retry-after'];
+          const retryAfterSeconds = Number(retryAfterHeader);
+          if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds >= 0) {
+            parsed.retryAfterMs = retryAfterSeconds * 1000;
+          }
+        }
+
+        resolve(parsed);
       });
     });
 
-    req.on('error', (err) => {
-      reject(err);
-    });
-
+    req.on('error', (err) => reject(err));
     req.setTimeout(15000, () => {
       req.destroy();
       reject(new Error('Request timed out after 15 seconds'));
     });
-
     req.end();
   });
 }
-
 /**
  * Get Spot Account Balance
  */
 async function getSpotBalance(apiKey, apiSecret) {
-  const query = buildSignedQuery({}, apiSecret);
-  const path = `/api/v3/account?${query}`;
-  const data = await makeRequest(BASE_SPOT_URL, path, 'GET', {
+  const data = await makeRequest(BASE_SPOT_URL, () => {
+    const query = buildSignedQuery({}, apiSecret);
+    return `/api/v3/account?${query}`;
+  }, 'GET', {
     'X-MBX-APIKEY': apiKey
   });
 
@@ -204,9 +221,10 @@ async function getSpotBalance(apiKey, apiSecret) {
  * Get Futures Account Balance
  */
 async function getFuturesBalance(apiKey, apiSecret) {
-  const query = buildSignedQuery({}, apiSecret);
-  const path = `/fapi/v2/account?${query}`;
-  const data = await makeRequest(BASE_FUTURES_URL, path, 'GET', {
+  const data = await makeRequest(BASE_FUTURES_URL, () => {
+    const query = buildSignedQuery({}, apiSecret);
+    return `/fapi/v2/account?${query}`;
+  }, 'GET', {
     'X-MBX-APIKEY': apiKey
   });
 
@@ -222,15 +240,10 @@ async function getFuturesBalance(apiKey, apiSecret) {
  * @private
  */
 async function _fetchIncomeWindow(apiKey, apiSecret, startTime, endTime, limit = 1000) {
-  const query = buildSignedQuery({
-    startTime,
-    endTime,
-    limit,
-    timestamp: Date.now()
-  }, apiSecret);
-
-  const path = `/fapi/v1/income?${query}`;
-  const data = await makeRequest(BASE_FUTURES_URL, path, 'GET', {
+  const data = await makeRequest(BASE_FUTURES_URL, () => {
+    const query = buildSignedQuery({ startTime, endTime, limit }, apiSecret);
+    return `/fapi/v1/income?${query}`;
+  }, 'GET', {
     'X-MBX-APIKEY': apiKey
   });
 
@@ -299,7 +312,7 @@ async function getFuturesIncome(apiKey, apiSecret, daysBack = 90) {
 }
 
 /**
- * Get Spot Trade History for one symbol with fromId pagination
+ * Get Spot Trade History for one symbol with backwards endTime pagination
  * @param {string} apiKey
  * @param {string} apiSecret
  * @param {string} symbol
@@ -311,24 +324,29 @@ async function getSpotTrades(apiKey, apiSecret, symbol = 'BTCUSDT', maxTrades = 
     throw new Error(`Invalid symbol: ${symbol}. Expected format like BTCUSDT.`);
   }
 
+  if (!Number.isInteger(maxTrades) || maxTrades <= 0) {
+    throw new Error(`Invalid maxTrades: ${maxTrades}. Expected a positive integer.`);
+  }
+
   const allTrades = [];
-  let fromId = undefined;
+  const seenIds = new Set();
+  // /myTrades without fromId returns the newest records. To walk backwards,
+  // use endTime based pagination from the oldest record in each page.
+  let endTime;
   let safety = 0;
 
   while (allTrades.length < maxTrades && safety < 100) {
     safety++;
     const params = {
       symbol,
-      limit: Math.min(SPOT_TRADES_PAGE_SIZE, maxTrades - allTrades.length),
-      timestamp: Date.now()
+      limit: Math.min(SPOT_TRADES_PAGE_SIZE, maxTrades - allTrades.length)
     };
-    if (fromId !== undefined) {
-      params.fromId = fromId;
-    }
+    if (endTime !== undefined) params.endTime = endTime;
 
-    const query = buildSignedQuery(params, apiSecret);
-    const path = `/api/v3/myTrades?${query}`;
-    const data = await makeRequest(BASE_SPOT_URL, path, 'GET', {
+    const data = await makeRequest(BASE_SPOT_URL, () => {
+      const query = buildSignedQuery(params, apiSecret);
+      return `/api/v3/myTrades?${query}`;
+    }, 'GET', {
       'X-MBX-APIKEY': apiKey
     });
 
@@ -338,18 +356,37 @@ async function getSpotTrades(apiKey, apiSecret, symbol = 'BTCUSDT', maxTrades = 
 
     if (!Array.isArray(data) || data.length === 0) break;
 
-    allTrades.push(...data);
+    // Keep ascending order within the final result and de-duplicate boundary rows.
+    const page = data
+      .filter(t => t && Number.isInteger(t.id))
+      .filter(t => !seenIds.has(t.id));
+
+    for (const trade of page) {
+      seenIds.add(trade.id);
+      allTrades.push(trade);
+    }
 
     if (data.length < SPOT_TRADES_PAGE_SIZE) break;
 
-    const lastId = data[data.length - 1].id;
-    if (typeof lastId !== 'number') break;
-    fromId = lastId + 1;
+    const oldestTime = data.reduce((min, t) => {
+      const time = Number(t && t.time);
+      return Number.isFinite(time) ? Math.min(min, time) : min;
+    }, Infinity);
+
+    if (!Number.isFinite(oldestTime)) {
+      throw new Error('Spot trade pagination stopped: response contained no valid trade timestamps');
+    }
+
+    const nextEndTime = oldestTime - 1;
+    if (endTime !== undefined && nextEndTime >= endTime) {
+      throw new Error('Spot trade pagination made no progress');
+    }
+    endTime = nextEndTime;
   }
 
-  return allTrades;
+  allTrades.sort((a, b) => a.time - b.time || a.id - b.id);
+  return allTrades.slice(0, maxTrades);
 }
-
 /**
  * Get all Spot trades for multiple symbols
  * @returns {Promise<object>} - { trades, errors }
@@ -381,7 +418,13 @@ async function getAllSpotTrades(apiKey, apiSecret, symbols = ['BTCUSDT', 'ETHUSD
     }
   }
 
-  return { trades: allTrades, errors };
+  return {
+    trades: allTrades,
+    errors,
+    requestedSymbols: cleaned,
+    successfulSymbols: Object.keys(allTrades),
+    complete: errors.length === 0
+  };
 }
 
 /**
