@@ -428,16 +428,29 @@ async function getAllSpotTrades(apiKey, apiSecret, symbols = ['BTCUSDT', 'ETHUSD
 }
 
 /**
- * Test API Connection
+ * Test API Connection.
+ *
+ * Tries Spot first (cheap, common case), then falls back to Futures.
+ * A key scoped to only one product (e.g. Futures-only, a realistic
+ * permission choice) should not be treated as "disconnected" just
+ * because the other product's endpoint rejects it.
  */
 async function testConnection(apiKey, apiSecret) {
-  try {
-    const balance = await getSpotBalance(apiKey, apiSecret);
-    return balance && !balance.code;
-  } catch (e) {
-    console.error('Connection test failed:', e.message);
-    return false;
-  }
+  const spotResult = await getSpotBalance(apiKey, apiSecret).then(
+    balance => ({ ok: !!(balance && !balance.code) }),
+    e => ({ ok: false, error: e })
+  );
+  if (spotResult.ok) return true;
+
+  const futuresResult = await getFuturesBalance(apiKey, apiSecret).then(
+    account => ({ ok: !!(account && !account.code) }),
+    e => ({ ok: false, error: e })
+  );
+  if (futuresResult.ok) return true;
+
+  console.error('Connection test failed (Spot):', spotResult.error && spotResult.error.message);
+  console.error('Connection test failed (Futures):', futuresResult.error && futuresResult.error.message);
+  return false;
 }
 
 module.exports = {
