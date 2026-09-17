@@ -11,6 +11,7 @@ const {
   simulateSpotHold
 } = require('../src/shadowSim.cjs');
 
+// avgLoss is NEGATIVE to match production analyzer.cjs output
 const MOCK_ANALYSIS = {
   trades: {
     total: 10,
@@ -22,7 +23,7 @@ const MOCK_ANALYSIS = {
   },
   averages: {
     avgWin: '60.00',
-    avgLoss: '30.00',
+    avgLoss: '-30.00',
     riskReward: '2.00'
   },
   hourly: {
@@ -55,6 +56,7 @@ assert(rrResult.losses === 4, `Should have 4 losses, got ${rrResult.losses}`);
 assert(parseFloat(rrResult.pnl) > 300, `Simulated PnL should exceed real PnL (300), got ${rrResult.pnl}`);
 assert(rrResult.improvement !== undefined, 'Should have improvement value');
 assert(rrResult.description.length > 0, 'Should have a description');
+assert(rrResult.description.includes('Illustrative'), 'Description should mark result as illustrative');
 
 // Test: simulateSelectiveTrading
 const selResult = simulateSelectiveTrading(MOCK_ANALYSIS, 50);
@@ -87,6 +89,14 @@ assert(redResult.commissionSavings !== undefined, 'Should have commission saving
 assert(redResult.improvement !== undefined, 'Should have improvement value');
 assert(redResult.description.length > 0, 'Should have a description');
 
+// Zero trades guard
+const redEmpty = simulateReducedTrading({
+  trades: { total: 0, winRate: '0', commissions: '0' },
+  pnl: { realized: '0' },
+  averages: { avgWin: '0', avgLoss: '0' }
+}, 50);
+assert(redEmpty.error !== undefined, 'Reduced trading should error on zero trades');
+
 // Test: simulateDCA
 const dcaResult = simulateDCA(MOCK_ANALYSIS);
 assert(dcaResult.strategy.includes('DCA'), 'Should mention DCA');
@@ -94,9 +104,10 @@ assert(dcaResult.originalWinRate === '60%', `Original win rate should be 60%, go
 assert(parseFloat(dcaResult.simulatedWinRate.replace('%', '')) > 60, 'Simulated win rate should improve');
 assert(dcaResult.improvementPnL !== undefined, 'Should have improvement PnL');
 assert(dcaResult.description.length > 0, 'Should have a description');
+assert(dcaResult.description.includes('Illustrative'), 'DCA description should be illustrative');
 
 // Test: simulateSpotDCA with trades
-const spotDCA = simulateSpotDCA({ totalTrades: 10 });
+const spotDCA = simulateSpotDCA({ totalTrades: 10, totalVolume: '10000' });
 assert(spotDCA.strategy.includes('DCA'), 'Should mention DCA');
 assert(spotDCA.originalVolume !== undefined, 'Should have original volume');
 assert(spotDCA.simulatedVolume !== undefined, 'Should have simulated volume');
@@ -126,6 +137,7 @@ assert(Array.isArray(shadow.strategies), 'Should have strategies array');
 assert(shadow.strategies.length === 4, `Should have 4 strategies, got ${shadow.strategies.length}`);
 assert(shadow.original.pnl === 300, `Original PnL should be 300, got ${shadow.original.pnl}`);
 assert(shadow.original.winRate === 60, `Original win rate should be 60, got ${shadow.original.winRate}`);
+assert(typeof shadow.disclaimer === 'string' && shadow.disclaimer.length > 0, 'Should include disclaimer');
 
 console.log(`\n${'='.repeat(40)}`);
 console.log(`Results: ${testsPassed} passed, ${testsFailed} failed`);
