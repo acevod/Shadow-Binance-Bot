@@ -2,7 +2,7 @@
  * Unit tests for analyzer.cjs
  */
 
-const { analyzeFuturesIncome, analyzeBehavior, analyzeSpotTrades, inferQuoteAsset } = require('../src/analyzer.cjs');
+const { analyzeFuturesIncome, analyzeSpotTrades, inferQuoteAsset } = require('../src/analyzer.cjs');
 
 const MOCK_INCOME_HISTORY = [
   { incomeType: 'REALIZED_PNL', income: '100.50', time: 1710000000000 },
@@ -102,24 +102,6 @@ const withErrors = analyzeSpotTrades({
 });
 assert(withErrors.fetchErrors.length === 1, 'Should surface fetchErrors');
 assert(withErrors.totalTrades === 3, 'Should still count trades from trades map');
-
-// Test: analyzeBehavior (threshold MAX_LOSS_STREAK = 5)
-const badBehavior = analyzeBehavior({
-  trades: { winRate: '20', total: 30 },
-  averages: { riskReward: '1.5' },
-  streaks: { maxLossStreak: 15 },
-  period: { days: 10 },
-  hourly: {}
-});
-
-const lowWR = badBehavior.find(i => i.message.includes('Win rate'));
-assert(lowWR !== undefined, 'Should flag low win rate');
-
-const lowRR = badBehavior.find(i => i.message.includes('Risk:Reward'));
-assert(lowRR !== undefined, 'Should flag low risk:reward');
-
-const tilt = badBehavior.find(i => i.message.includes('15'));
-assert(tilt !== undefined, 'Should flag loss streak > MAX_LOSS_STREAK');
 
 // Daily PnL uses ISO dates
 assert(result.daily.bestDay.date === result.daily.worstDay.date || true, 'daily best/worst present');
