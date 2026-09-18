@@ -2,7 +2,7 @@
 ---
 name: shadow-binance-bot
 description: AI-powered read-only trading analysis coach that simulates alternative strategies against your Binance trade history.
-version: 1.4.1
+version: 1.5.0
 author: acevod
 homepage: https://github.com/acevod/Shadow-Binance-Bot
 license: MIT
