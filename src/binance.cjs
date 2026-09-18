@@ -28,6 +28,18 @@ const FUTURES_INCOME_MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000; // Binance retains ~
 const SPOT_TRADES_PAGE_SIZE = 1000;
 const SYMBOL_REGEX = /^[A-Z0-9]{4,25}$/;
 
+// Rate-limit awareness. Binance returns the account's current 1-minute
+// request-weight usage in the `x-mbx-used-weight-1m` response header on
+// every call. These are the standard default weight budgets (VIP tiers can
+// raise them, but treating these as the ceiling is a safe, conservative
+// default for a read-only tool with no way to know the account's actual tier).
+const WEIGHT_LIMIT_PER_MIN = {
+  [BASE_SPOT_URL]: 6000,
+  [BASE_FUTURES_URL]: 2400
+};
+const RATE_LIMIT_WARN_THRESHOLD = 0.8; // proactively back off at 80% of budget
+const RATE_LIMIT_BACKOFF_MS = 1000;
+
 /**
  * Delay utility for retry backoff
  * @param {number} ms - Milliseconds to wait
@@ -129,6 +141,13 @@ async function makeRequest(hostname, pathOrFactory, method, headers = {}) {
     try {
       const result = await _doRequest(hostname, path, method, headers);
 
+      const usedWeight = result && result._usedWeight1m;
+      const weightLimit = WEIGHT_LIMIT_PER_MIN[hostname];
+      if (weightLimit && Number.isFinite(usedWeight) && usedWeight / weightLimit >= RATE_LIMIT_WARN_THRESHOLD) {
+        console.error(`[Rate Limit] Used ${usedWeight}/${weightLimit} request weight (1m) on ${hostname}. Slowing down to avoid a ban...`);
+        await delay(RATE_LIMIT_BACKOFF_MS);
+      }
+
       if (isRetryable(result)) {
         if (attempt < MAX_RETRIES) {
           const retryAfterMs = Number(result.retryAfterMs);
@@ -185,6 +204,15 @@ function _doRequest(hostname, path, method, headers = {}) {
           if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds >= 0) {
             parsed.retryAfterMs = retryAfterSeconds * 1000;
           }
+        }
+
+        // Track used request-weight for proactive rate-limit backoff.
+        // Non-enumerable so it doesn't show up in JSON.stringify/Object.keys
+        // of what is otherwise treated as the raw Binance response body.
+        const usedWeightHeader = res.headers['x-mbx-used-weight-1m'];
+        const usedWeight = Number(usedWeightHeader);
+        if (parsed && typeof parsed === 'object' && Number.isFinite(usedWeight)) {
+          Object.defineProperty(parsed, '_usedWeight1m', { value: usedWeight, enumerable: false });
         }
 
         resolve(parsed);
