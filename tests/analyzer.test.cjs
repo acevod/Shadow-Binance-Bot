@@ -2,7 +2,7 @@
  * Unit tests for analyzer.cjs
  */
 
-const { analyzeFuturesIncome, analyzeBehavior, analyzeSpotTrades } = require('../src/analyzer.cjs');
+const { analyzeFuturesIncome, analyzeBehavior, analyzeSpotTrades, inferQuoteAsset } = require('../src/analyzer.cjs');
 
 const MOCK_INCOME_HISTORY = [
   { incomeType: 'REALIZED_PNL', income: '100.50', time: 1710000000000 },
@@ -147,6 +147,30 @@ const invalidIncome = analyzeFuturesIncome([
 assert(invalidIncome.dataQuality.invalidRecords === 1, 'Malformed Futures income should be counted as invalid');
 assert(invalidIncome.dataQuality.complete === false, 'Analysis with invalid input should be marked incomplete');
 assert(invalidIncome.trades.unit === 'realized_pnl_event', 'Futures trade count must disclose its event-based unit');
+
+// Quote-asset inference and volume-mixing regression tests
+assert(inferQuoteAsset('BTCUSDT') === 'USDT', 'BTCUSDT should infer USDT quote asset');
+assert(inferQuoteAsset('ETHBTC') === 'BTC', 'ETHBTC should infer BTC quote asset');
+assert(inferQuoteAsset('BNBETH') === 'ETH', 'BNBETH should infer ETH quote asset');
+assert(inferQuoteAsset('XYZFOO') === 'UNKNOWN', 'Unrecognized quote asset should be UNKNOWN, not guessed');
+
+const mixedQuoteAssets = analyzeSpotTrades({
+  BTCUSDT: [{ id: 1, qty: '1', price: '60000', commission: '0', commissionAsset: 'USDT', isBuyer: true }],
+  ETHBTC: [{ id: 1, qty: '10', price: '0.05', commission: '0', commissionAsset: 'ETH', isBuyer: true }]
+});
+assert(mixedQuoteAssets.volumeComparable === false, 'Volume across different quote assets must not be treated as comparable');
+assert(mixedQuoteAssets.totalVolume === null, 'Mixed-quote-asset volume must not expose a misleading single total (e.g. USDT + BTC summed)');
+assert(mixedQuoteAssets.avgTradeSize === null, 'Avg trade size must not be derived from a mixed-currency total');
+assert(mixedQuoteAssets.volumeByQuoteAsset.USDT === '60000.00', 'USDT-quoted volume should be tracked separately');
+assert(mixedQuoteAssets.volumeByQuoteAsset.BTC === '0.50', 'BTC-quoted volume should be tracked separately');
+
+const singleQuoteAsset = analyzeSpotTrades({
+  BTCUSDT: [{ id: 1, qty: '1', price: '60000', commission: '0', commissionAsset: 'USDT', isBuyer: true }],
+  ETHUSDT: [{ id: 1, qty: '2', price: '3000', commission: '0', commissionAsset: 'USDT', isBuyer: true }]
+});
+assert(singleQuoteAsset.volumeComparable === true, 'Single quote asset across symbols should remain comparable');
+assert(singleQuoteAsset.totalVolume === '66000.00', 'Single-quote-asset volume should sum normally (regression check against the fix)');
+assert(singleQuoteAsset.avgTradeSize === '33000.00', 'Avg trade size should compute normally when comparable');
 
 console.log(`\n${'='.repeat(40)}`);
 console.log(`Results: ${testsPassed} passed, ${testsFailed} failed`);
