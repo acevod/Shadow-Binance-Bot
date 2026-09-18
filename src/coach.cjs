@@ -105,6 +105,15 @@ function identifyProblems(analysis) {
     });
   }
 
+  const tradesPerDay = analysis.trades.total / (analysis.period.days || 1);
+  if (tradesPerDay > THRESHOLDS.MAX_TRADES_PER_DAY) {
+    problems.push({
+      severity: 'medium',
+      title: 'Overtrading',
+      description: `You're trading ${tradesPerDay.toFixed(1)} times per day on average. Consider trading less and waiting for better setups.`
+    });
+  }
+
   return problems;
 }
 
@@ -270,6 +279,58 @@ function formatReport(report) {
   output += '============================================\n';
   output += `${report.motivation}\n`;
   output += '============================================\n';
+
+  return output;
+}
+
+/**
+ * Format an account balance summary for console display.
+ * @param {object|null} futuresBalance - Raw /fapi/v2/account response, or null if unavailable/unauthorized.
+ * @param {object|null} spotBalance - Raw /api/v3/account response, or null if unavailable/unauthorized.
+ */
+function formatBalanceSummary(futuresBalance, spotBalance) {
+  let output = '';
+  output += '============================================\n';
+  output += '         ACCOUNT BALANCE                    \n';
+  output += '============================================\n\n';
+
+  if (futuresBalance) {
+    const wallet = parseFloat(futuresBalance.totalWalletBalance);
+    const unrealized = parseFloat(futuresBalance.totalUnrealizedProfit);
+    const margin = parseFloat(futuresBalance.totalMarginBalance);
+    output += 'Futures (USDT-M)\n';
+    output += '--------------------------------------------\n';
+    if (Number.isFinite(wallet)) output += `Wallet Balance: ${wallet.toFixed(4)} USDT\n`;
+    if (Number.isFinite(unrealized)) output += `Unrealized PnL: ${unrealized.toFixed(4)} USDT\n`;
+    if (Number.isFinite(margin)) output += `Margin Balance: ${margin.toFixed(4)} USDT\n`;
+    output += '\n';
+  } else {
+    output += 'Futures (USDT-M): not available (permission denied or no Futures account)\n\n';
+  }
+
+  if (spotBalance && Array.isArray(spotBalance.balances)) {
+    const nonZero = spotBalance.balances
+      .map(b => ({ asset: b.asset, total: parseFloat(b.free) + parseFloat(b.locked) }))
+      .filter(b => Number.isFinite(b.total) && b.total > 0)
+      .sort((a, b) => b.total - a.total);
+
+    output += 'Spot\n';
+    output += '--------------------------------------------\n';
+    if (nonZero.length === 0) {
+      output += 'No non-zero Spot balances.\n\n';
+    } else {
+      const SHOWN = 15;
+      nonZero.slice(0, SHOWN).forEach(b => {
+        output += `${b.asset}: ${b.total}\n`;
+      });
+      if (nonZero.length > SHOWN) {
+        output += `...and ${nonZero.length - SHOWN} more asset(s) with a balance.\n`;
+      }
+      output += '\nNote: balances are shown per-asset, in their native units (not converted to a common currency).\n\n';
+    }
+  } else {
+    output += 'Spot: not available (permission denied or no Spot account)\n\n';
+  }
 
   return output;
 }
@@ -481,7 +542,9 @@ function formatSpotReport(report) {
 
 module.exports = {
   generateCoachReport,
+  identifyProblems,
   formatReport,
+  formatBalanceSummary,
   generateSpotCoachReport,
   formatSpotReport,
   THRESHOLDS
