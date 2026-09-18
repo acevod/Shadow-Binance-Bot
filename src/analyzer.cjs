@@ -264,6 +264,27 @@ function analyzeBehavior(analysis) {
 }
 
 /**
+ * Infer the quote asset from a Spot symbol (e.g. 'BTCUSDT' -> 'USDT').
+ * Binance trade records don't include the quote asset directly, so we
+ * match known quote-asset suffixes, longest first, to avoid ambiguity
+ * (e.g. 'BTCUSDT' must match 'USDT', not the trailing 'T' of nothing).
+ * @param {string} symbol
+ * @returns {string} - The inferred quote asset, or 'UNKNOWN' if no match.
+ */
+const KNOWN_QUOTE_ASSETS = [
+  'USDT', 'BUSD', 'USDC', 'FDUSD', 'TUSD', 'DAI',
+  'BTC', 'ETH', 'BNB',
+  'EUR', 'GBP', 'TRY', 'BRL', 'AUD', 'RUB', 'ZAR', 'UAH', 'PLN', 'RON', 'ARS'
+].sort((a, b) => b.length - a.length);
+
+function inferQuoteAsset(symbol) {
+  if (typeof symbol !== 'string') return 'UNKNOWN';
+  const upper = symbol.toUpperCase();
+  const match = KNOWN_QUOTE_ASSETS.find(q => upper.endsWith(q) && upper.length > q.length);
+  return match || 'UNKNOWN';
+}
+
+/**
  * Analyze Spot trades from multiple symbols
  * @param {object} allTrades - Object with trades grouped by symbol, or { trades, errors }
  * @returns {object} - Spot analysis results
@@ -272,16 +293,17 @@ function analyzeSpotTrades(allTrades) {
   const tradesBySymbol = (allTrades && allTrades.trades) ? allTrades.trades : (allTrades || {});
 
   let totalTrades = 0;
-  let totalVolume = 0;
   const symbols = Object.keys(tradesBySymbol);
   const symbolStats = {};
   const commissionByAsset = {};
+  const volumeByQuoteAsset = {};
   let invalidTrades = 0;
 
   symbols.forEach(symbol => {
     const trades = tradesBySymbol[symbol];
     if (!Array.isArray(trades) || trades.length === 0) return;
 
+    const quoteAsset = inferQuoteAsset(symbol);
     let symbolVolume = 0;
     let buys = 0;
     let sells = 0;
@@ -312,12 +334,13 @@ function analyzeSpotTrades(allTrades) {
     });
 
     totalTrades += trades.length;
-    totalVolume += symbolVolume;
+    volumeByQuoteAsset[quoteAsset] = (volumeByQuoteAsset[quoteAsset] || 0) + symbolVolume;
 
     const assets = Object.keys(symbolCommissionByAsset);
     symbolStats[symbol] = {
       trades: trades.length,
       volume: symbolVolume.toFixed(2),
+      quoteAsset,
       buys,
       sells,
       invalidTrades: symbolInvalid,
@@ -332,11 +355,21 @@ function analyzeSpotTrades(allTrades) {
     ? (assets.length === 1 ? commissionByAsset[assets[0]] : 0).toFixed(6)
     : null;
 
+  const quoteAssets = Object.keys(volumeByQuoteAsset);
+  const volumeComparable = quoteAssets.length <= 1;
+  const totalVolume = volumeComparable
+    ? (quoteAssets.length === 1 ? volumeByQuoteAsset[quoteAssets[0]] : 0)
+    : null;
+
   return {
     totalSymbols: symbols.length,
     totalTrades,
-    totalVolume: totalVolume.toFixed(2),
-    avgTradeSize: totalTrades > 0 ? (totalVolume / totalTrades).toFixed(2) : '0.00',
+    totalVolume: totalVolume !== null ? totalVolume.toFixed(2) : null,
+    volumeByQuoteAsset: Object.fromEntries(
+      quoteAssets.map(asset => [asset, volumeByQuoteAsset[asset].toFixed(2)])
+    ),
+    volumeComparable,
+    avgTradeSize: (volumeComparable && totalTrades > 0) ? (totalVolume / totalTrades).toFixed(2) : null,
     totalCommission,
     commissionByAsset: Object.fromEntries(
       assets.map(asset => [asset, commissionByAsset[asset].toFixed(8)])
@@ -357,5 +390,6 @@ module.exports = {
   analyzeFuturesIncome,
   analyzeBehavior,
   analyzeSpotTrades,
+  inferQuoteAsset,
   THRESHOLDS
 };
