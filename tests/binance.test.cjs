@@ -50,43 +50,104 @@ assert(qs2.includes('signature='), 'Still signed');
 // move backwards by endTime rather than incorrectly advancing from latest ID.
 const https = require('https');
 const EventEmitter = require('events');
-const { getSpotTrades } = require('../src/binance.cjs');
+const { getSpotTrades, getFuturesIncome } = require('../src/binance.cjs');
 
 const originalRequest = https.request;
-const calls = [];
-https.request = (options, callback) => {
-  calls.push(options.path);
-  const req = new EventEmitter();
-  req.setTimeout = () => req;
-  req.destroy = () => {};
-  req.end = () => {
-    const res = new EventEmitter();
-    res.statusCode = 200;
-    res.headers = {};
-    res.setEncoding = () => {};
-    process.nextTick(() => {
-      const page = calls.length === 1
-        ? Array.from({ length: 1000 }, (_, i) => ({ id: 1001 + i, time: 1001 + i, qty: '1', price: '1' }))
-        : Array.from({ length: 1000 }, (_, i) => ({ id: 1 + i, time: 1 + i, qty: '1', price: '1' }));
-      callback(res);
-      res.emit('data', JSON.stringify(page));
-      res.emit('end');
-    });
-  };
-  return req;
-};
 
-getSpotTrades('key', 'secret', 'BTCUSDT', 2000)
-  .then(trades => {
-    assert(trades.length === 2000, `Pagination should return 2000 trades, got ${trades.length}`);
-    assert(trades[0].id === 1 && trades[1999].id === 2000, 'Trades should be returned oldest-to-newest after backward pagination');
-    assert(calls.length === 2, `Should make 2 paginated requests, got ${calls.length}`);
-    assert(calls[1].includes('endTime=1000'), 'Second request should use endTime before the oldest trade from the first page');
-    assert(!calls[1].includes('fromId='), 'Backward pagination should not advance from the newest trade ID');
-  })
+function mockSpotPagination() {
+  const calls = [];
+  https.request = (options, callback) => {
+    calls.push(options.path);
+    const req = new EventEmitter();
+    req.setTimeout = () => req;
+    req.destroy = () => {};
+    req.end = () => {
+      const res = new EventEmitter();
+      res.statusCode = 200;
+      res.headers = {};
+      res.setEncoding = () => {};
+      process.nextTick(() => {
+        const page = calls.length === 1
+          ? Array.from({ length: 1000 }, (_, i) => ({ id: 1001 + i, time: 1001 + i, qty: '1', price: '1' }))
+          : Array.from({ length: 1000 }, (_, i) => ({ id: 1 + i, time: 1 + i, qty: '1', price: '1' }));
+        callback(res);
+        res.emit('data', JSON.stringify(page));
+        res.emit('end');
+      });
+    };
+    return req;
+  };
+  return calls;
+}
+
+async function testSpotPagination() {
+  const calls = mockSpotPagination();
+  const trades = await getSpotTrades('key', 'secret', 'BTCUSDT', 2000);
+  assert(trades.length === 2000, `Pagination should return 2000 trades, got ${trades.length}`);
+  assert(trades[0].id === 1 && trades[1999].id === 2000, 'Trades should be returned oldest-to-newest after backward pagination');
+  assert(calls.length === 2, `Should make 2 paginated requests, got ${calls.length}`);
+  assert(calls[1].includes('endTime=1000'), 'Second request should use endTime before the oldest trade from the first page');
+  assert(!calls[1].includes('fromId='), 'Backward pagination should not advance from the newest trade ID');
+}
+
+// Futures income pagination regression test: with daysBack=8, the 7-day
+// window walker should produce exactly 2 outer windows. The first window's
+// page returns a full 1000-row batch (forcing an in-window sub-page fetch),
+// the sub-page returns 200 (< 1000, ending the window), and the second
+// window returns 50. Total: 3 requests, 1250 merged+sorted records.
+//
+// The mock must generate `time` values relative to the *requested* startTime
+// (real epoch scale) — the pagination safety guard breaks early if
+// lastTime <= pageStart, which small synthetic counters would trigger.
+function mockFuturesIncomePagination() {
+  let callCount = 0;
+  const pageSizes = [1000, 200, 50];
+  https.request = (options, callback) => {
+    callCount++;
+    const url = new URL(options.path, 'http://x');
+    const startTime = Number(url.searchParams.get('startTime'));
+    const req = new EventEmitter();
+    req.setTimeout = () => req;
+    req.destroy = () => {};
+    req.end = () => {
+      const res = new EventEmitter();
+      res.statusCode = 200;
+      res.headers = {};
+      res.setEncoding = () => {};
+      process.nextTick(() => {
+        const size = pageSizes[callCount - 1] !== undefined ? pageSizes[callCount - 1] : 0;
+        const batch = Array.from({ length: size }, (_, i) => ({
+          tranId: `${callCount}-${i}`,
+          time: startTime + i,
+          incomeType: 'REALIZED_PNL',
+          income: '1.0'
+        }));
+        callback(res);
+        res.emit('data', JSON.stringify(batch));
+        res.emit('end');
+      });
+    };
+    return req;
+  };
+  return () => callCount;
+}
+
+async function testFuturesIncomePagination() {
+  const getCallCount = mockFuturesIncomePagination();
+  const income = await getFuturesIncome('key', 'secret', 8);
+  assert(getCallCount() === 3, `Should make 3 requests (1000+200 in window 1, 50 in window 2), got ${getCallCount()}`);
+  assert(income.length === 1250, `Should return 1250 merged records, got ${income.length}`);
+  const sorted = income.every((row, i) => i === 0 || row.time >= income[i - 1].time);
+  assert(sorted, 'Futures income should be sorted ascending by time across windows');
+  const uniqueKeys = new Set(income.map(r => `${r.tranId}|${r.time}|${r.incomeType}|${r.income}`));
+  assert(uniqueKeys.size === income.length, 'Records should be de-duplicated');
+}
+
+testSpotPagination()
+  .then(testFuturesIncomePagination)
   .catch(err => {
     testsFailed++;
-    console.error(`FAIL: Spot pagination regression test threw: ${err.message}`);
+    console.error(`FAIL: pagination regression test threw: ${err.message}`);
   })
   .finally(() => {
     https.request = originalRequest;
