@@ -291,6 +291,8 @@ function generateSpotSummary(spotAnalysis) {
     totalTrades: spotAnalysis.totalTrades,
     totalSymbols: spotAnalysis.totalSymbols,
     totalVolume: spotAnalysis.totalVolume,
+    volumeByQuoteAsset: spotAnalysis.volumeByQuoteAsset || {},
+    volumeComparable: spotAnalysis.volumeComparable !== false,
     avgTradeSize: spotAnalysis.avgTradeSize,
     commission: spotAnalysis.totalCommission,
     commissionByAsset: spotAnalysis.commissionByAsset || {},
@@ -427,8 +429,16 @@ function formatSpotReport(report) {
   output += '--------------------------------------------\n';
   output += `Total Trades: ${report.summary.totalTrades}\n`;
   output += `Symbols: ${report.summary.totalSymbols}\n`;
-  output += `Volume: $${report.summary.totalVolume} USDT\n`;
-  output += `Avg Trade: $${report.summary.avgTradeSize} USDT\n`;
+  if (report.summary.volumeComparable) {
+    output += `Volume: $${report.summary.totalVolume} ${Object.keys(report.summary.volumeByQuoteAsset)[0] || 'USDT'}\n`;
+    output += `Avg Trade: $${report.summary.avgTradeSize}\n`;
+  } else {
+    const volBreakdown = Object.entries(report.summary.volumeByQuoteAsset || {})
+      .map(([asset, amount]) => `${amount} ${asset}`)
+      .join(', ');
+    output += `Volume: ${volBreakdown || 'N/A'} (traded against multiple quote assets, not summed)\n`;
+    output += `Avg Trade: N/A (multiple quote assets)\n`;
+  }
   if (report.summary.commissionComparable) {
     output += `Fees Paid: ${report.summary.commission}\n\n`;
   } else {
