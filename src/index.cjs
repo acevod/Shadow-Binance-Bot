@@ -272,14 +272,19 @@ async function main() {
 
     // ===== COMBINED TOTAL =====
     const futuresNetPnL = parseFloat(futuresAnalysis.pnl.net);
-    const spotVolume = parseFloat(spotAnalysis.totalVolume) || 0;
+    const spotVolumeComparable = spotAnalysis.volumeComparable !== false;
+    const spotVolume = spotVolumeComparable ? (parseFloat(spotAnalysis.totalVolume) || 0) : null;
 
     console.log('');
     console.log('============================================');
     console.log('        COMBINED TOTAL                      ');
     console.log('============================================');
     console.log(`Futures Net PnL: ${futuresNetPnL.toFixed(4)} USDT`);
-    console.log(`Spot Notional: ${spotVolume.toFixed(2)} (quote asset depends on symbol)`);
+    if (spotVolumeComparable) {
+      console.log(`Spot Notional: ${spotVolume.toFixed(2)} (quote asset depends on symbol)`);
+    } else {
+      console.log('Spot Notional: traded against multiple quote assets (see Spot Summary above for the breakdown)');
+    }
     console.log('');
 
     if (futuresNetPnL < 0) {
