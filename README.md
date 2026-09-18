@@ -69,12 +69,12 @@ By comparing real trades with AI-simulated strategies, the system can identify:
 
 ### Portfolio Analysis
 
-Analyze Binance Spot and Futures positions including:
+Analyze Binance Spot and Futures trading history including:
 
-- entry timing
-- position size
-- profit and loss
-- leverage usage
+- win rate, risk:reward, and PnL by period
+- best/worst trading hours (UTC)
+- fee and funding cost breakdown
+- Futures account balance (wallet, unrealized PnL, margin balance) and non-zero Spot balances, when the API key has read access
 
 ### Shadow Strategy Simulation
 
@@ -85,14 +85,16 @@ Run alternative strategies on historical trades:
 - reduced leverage
 - improved stop-loss placement
 
-### Emotional Trading Detection
+### Trading Pattern Detection
 
-Detect patterns such as:
+Flag statistical patterns in your trading history:
 
-- FOMO entries
-- panic selling
-- revenge trading
-- over-leveraging
+- low win rate or poor risk:reward ratio
+- consecutive loss streaks (possible tilt/revenge trading)
+- overtrading (too many trades per day)
+- hours of the day with a notably low or high historical win rate
+
+These are heuristic signals based on your trade data, not a claim about your emotional state at the time.
 
 ### AI Coaching Feedback
 
@@ -143,30 +145,30 @@ Shadow Binance Bot can help traders:
 
 ## Example Output
 
-**Portfolio Summary**
+A real sample from a single run (demo mode, values vary by account/run since demo data is randomly generated):
 
-BTCUSDT position: +4.2%  
-ETHUSDT position: -2.1%
+```
+SUMMARY
+--------------------------------------------
+Period: 2026-08-19 to 2026-09-18 (30 days)
+Trades: 60
+Win Rate: 50%
+Net PnL: 808.2491 USDT
+Verdict: POSITIVE NET PnL
 
-**Shadow Simulation**
+PROBLEMS IDENTIFIED
+--------------------------------------------
+1. Poor Risk:Reward
+   You're using 1:2.39 risk:reward. You need at least 1:3 to cover your losses.
 
-BTCUSDT alternative strategy: +6.8%  
-ETHUSDT alternative strategy: +3.5%
+RECOMMENDATIONS
+--------------------------------------------
+1. [Priority 1] Scenario: Improved Risk:Reward (1:4)
+   [Illustrative] Holding the same win rate but targeting 1:4 R:R (instead of 1:2.39)...
+   Potential: 935.8059 USDT (illustrative; not a forecast)
+```
 
-**Key Observations**
-
-- FOMO entry detected on BTCUSDT  
-- Panic exit detected on ETHUSDT
-
-**Coaching Insight**
-
-Your entries often occur after strong price momentum.
-
-**Suggested Improvements**
-
-- wait for pullbacks before entering  
-- reduce leverage  
-- define stop-loss levels before opening trades
+Run `node src/index.cjs` with no API keys set to see the full report on generated demo data.
 
 ---
 
@@ -261,7 +263,25 @@ node src/index.cjs
 5. Copy your API Key and Secret Key
 6. **Restrict the key to your IP address** (required for platform deployments)
 
+**For full coverage, enable "Read Info" for both Spot & Futures.** A key scoped to only one product still works — the tool will connect and report on whichever product it can access, and note what it couldn't.
+
 Never share your Secret Key! Restrict the key to your IP address in Binance API Settings.
+
+### Data Coverage
+
+- Futures income history is fetched in 7-day windows going back up to **90 days** (Binance's own retention window for this endpoint) — older activity isn't available through this API and won't appear in the report.
+- Spot trade history is paginated per symbol, up to 5,000 trades per symbol by default.
+- If a Spot symbol fails to fetch or the fetch is incomplete, the report says so explicitly rather than presenting partial data as complete.
+
+---
+
+## Running Tests
+
+```bash
+npm test
+```
+
+Runs the full test suite (`tests/analyzer.test.cjs`, `tests/shadowSim.test.cjs`, `tests/binance.test.cjs`, `tests/coach.test.cjs`) — pure unit tests plus mocked-network regression tests for pagination and rate-limit backoff. No real Binance API calls or credentials are needed to run the tests.
 
 ---
 
@@ -274,16 +294,6 @@ But traders rarely receive feedback on **how their decisions affect outcomes**.
 Shadow Mode Trading Trainer bridges that gap by turning historical trading data into a learning system.
 
 The goal is to help traders evolve from reactive decision-making to disciplined strategy development.
-
----
-
-## Future Improvements
-
-- advanced AI trade pattern recognition
-- portfolio risk scoring
-- strategy backtesting engine
-- trading psychology analysis
-- visual performance dashboards
 
 ---
 
