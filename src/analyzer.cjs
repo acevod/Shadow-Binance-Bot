@@ -201,69 +201,6 @@ function analyzeDailyPnL(pnlTrades) {
 }
 
 /**
- * Get trading behavior analysis
- * @param {object} analysis - Full analysis object
- * @returns {object} - Behavior insights
- */
-function analyzeBehavior(analysis) {
-  const insights = [];
-
-  if (parseFloat(analysis.trades.winRate) < THRESHOLDS.LOW_WIN_RATE) {
-    insights.push({
-      type: 'warning',
-      message: `Win rate is only ${analysis.trades.winRate}%. A higher win rate can help, but profitability also depends on average win/loss, fees, funding, and expectancy.`
-    });
-  }
-
-  if (parseFloat(analysis.averages.riskReward) < THRESHOLDS.MIN_RISK_REWARD) {
-    insights.push({
-      type: 'warning',
-      message: `Risk:Reward is only 1:${analysis.averages.riskReward}. Evaluate expectancy using your actual win/loss distribution and trading costs; 1:${THRESHOLDS.MIN_RISK_REWARD} is only a heuristic target.`
-    });
-  }
-
-  if (analysis.streaks.maxLossStreak > THRESHOLDS.MAX_LOSS_STREAK) {
-    insights.push({
-      type: 'danger',
-      message: `Max loss streak of ${analysis.streaks.maxLossStreak} detected! This may indicate revenge trading or tilting.`
-    });
-  }
-
-  const tradesPerDay = analysis.trades.total / (analysis.period.days || 1);
-  if (tradesPerDay > THRESHOLDS.MAX_TRADES_PER_DAY) {
-    insights.push({
-      type: 'warning',
-      message: `You're trading ${tradesPerDay.toFixed(1)} times per day on average. Consider trading less and waiting for better setups.`
-    });
-  }
-
-  const hourly = analysis.hourly || {};
-  const badHours = Object.entries(hourly)
-    .filter(([, data]) => parseInt(data.winRate, 10) < THRESHOLDS.MAX_BAD_HOUR_WIN_RATE && data.total > THRESHOLDS.MIN_BAD_HOUR_TRADES)
-    .map(([h]) => `${h}:00 UTC`);
-
-  if (badHours.length > 0) {
-    insights.push({
-      type: 'tip',
-      message: `Avoid trading at these hours (low win rate): ${badHours.join(', ')}`
-    });
-  }
-
-  const goodHours = Object.entries(hourly)
-    .filter(([, data]) => parseInt(data.winRate, 10) >= THRESHOLDS.MIN_GOOD_HOUR_WIN_RATE)
-    .map(([h, data]) => `${h}:00 UTC (${data.winRate}% win rate)`);
-
-  if (goodHours.length > 0) {
-    insights.push({
-      type: 'success',
-      message: `Your best trading hours (highest win rate): ${goodHours.join(', ')}`
-    });
-  }
-
-  return insights;
-}
-
-/**
  * Infer the quote asset from a Spot symbol (e.g. 'BTCUSDT' -> 'USDT').
  * Binance trade records don't include the quote asset directly, so we
  * match known quote-asset suffixes, longest first, to avoid ambiguity
@@ -388,7 +325,6 @@ function analyzeSpotTrades(allTrades) {
 
 module.exports = {
   analyzeFuturesIncome,
-  analyzeBehavior,
   analyzeSpotTrades,
   inferQuoteAsset,
   THRESHOLDS
