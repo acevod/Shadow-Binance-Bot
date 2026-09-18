@@ -193,6 +193,16 @@ async function main() {
   console.log('Connected to Binance!');
   console.log('');
 
+  console.log('Fetching account balances...');
+  const [futuresBalanceResult, spotBalanceResult] = await Promise.allSettled([
+    binance.getFuturesBalance(BINANCE_API_KEY, BINANCE_API_SECRET),
+    binance.getSpotBalance(BINANCE_API_KEY, BINANCE_API_SECRET)
+  ]);
+  const futuresBalance = futuresBalanceResult.status === 'fulfilled' ? futuresBalanceResult.value : null;
+  const spotBalance = spotBalanceResult.status === 'fulfilled' ? spotBalanceResult.value : null;
+  console.log('');
+  console.log(coach.formatBalanceSummary(futuresBalance, spotBalance));
+
   try {
     // ===== FUTURES ANALYSIS =====
     console.log('============================================');
