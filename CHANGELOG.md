@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v1.5.0] - 2026-09-18
+
+### Added
+- Account Balance section: reports Futures wallet balance, unrealized PnL, and margin balance, plus non-zero Spot balances, fetched best-effort so a key scoped to only one product still shows what it can access.
+- Proactive rate-limit backoff: tracks Binance's `x-mbx-used-weight-1m` response header and automatically pauses before request weight nears the account's per-minute budget, instead of only reacting after a 429/418.
+- Mocked-network regression test for `getFuturesIncome()`'s window + sub-page pagination (previously only Spot pagination had test coverage).
+
+### Fixed
+- `testConnection()` no longer fails outright for API keys scoped to only Futures (or only Spot) — it now tries both and succeeds if either is reachable.
+- Spot report no longer prints a literal `null` for "Fees Paid" when commissions were paid in more than one asset; it now shows a per-asset breakdown.
+- Spot trade volume/notional is no longer summed across symbols with different quote assets (e.g. a USDT-quoted pair and a BTC-quoted pair) into one misleading number. Volume is now grouped by quote asset, with an explicit breakdown when a single total wouldn't make sense.
+
+### Removed
+- `analyzer.analyzeBehavior()` — fully superseded by `coach.identifyProblems()` / `coach.generateRecommendations()`, which now also cover its one previously-unique check (overtrading, trades/day over threshold).
+
+---
+
 ## [v1.4.1] - 2026-09-18
 
 ### Fixed — Data Integrity & Reliability
