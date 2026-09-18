@@ -50,7 +50,7 @@ assert(qs2.includes('signature='), 'Still signed');
 // move backwards by endTime rather than incorrectly advancing from latest ID.
 const https = require('https');
 const EventEmitter = require('events');
-const { getSpotTrades, getFuturesIncome } = require('../src/binance.cjs');
+const { getSpotTrades, getFuturesIncome, getSpotBalance } = require('../src/binance.cjs');
 
 const originalRequest = https.request;
 
@@ -143,8 +143,50 @@ async function testFuturesIncomePagination() {
   assert(uniqueKeys.size === income.length, 'Records should be de-duplicated');
 }
 
+// Rate-limit awareness regression test: a response reporting used-weight
+// near the account's per-minute budget should trigger a proactive backoff
+// delay; low usage (or a response with no weight header at all, e.g. an
+// older/atypical response) should not.
+function mockWeightResponse(usedWeightHeader) {
+  https.request = (options, callback) => {
+    const req = new EventEmitter();
+    req.setTimeout = () => req;
+    req.destroy = () => {};
+    req.end = () => {
+      const res = new EventEmitter();
+      res.statusCode = 200;
+      res.headers = usedWeightHeader !== undefined ? { 'x-mbx-used-weight-1m': String(usedWeightHeader) } : {};
+      res.setEncoding = () => {};
+      process.nextTick(() => {
+        callback(res);
+        res.emit('data', JSON.stringify({ balances: [] }));
+        res.emit('end');
+      });
+    };
+    return req;
+  };
+}
+
+async function testRateLimitBackoff() {
+  mockWeightResponse(100); // 100/6000, well under the 80% threshold
+  let start = Date.now();
+  await getSpotBalance('key', 'secret');
+  assert(Date.now() - start < 500, 'Low used-weight should not trigger a backoff delay');
+
+  mockWeightResponse(5500); // 5500/6000 ~= 92%, over the 80% threshold
+  start = Date.now();
+  await getSpotBalance('key', 'secret');
+  assert(Date.now() - start >= 900, 'High used-weight (>=80% of budget) should trigger a proactive backoff delay');
+
+  mockWeightResponse(undefined); // no weight header present
+  start = Date.now();
+  await getSpotBalance('key', 'secret');
+  assert(Date.now() - start < 500, 'Missing weight header should not crash or trigger a delay');
+}
+
 testSpotPagination()
   .then(testFuturesIncomePagination)
+  .then(testRateLimitBackoff)
   .catch(err => {
     testsFailed++;
     console.error(`FAIL: pagination regression test threw: ${err.message}`);
